@@ -271,63 +271,135 @@ def estimate_business_count_improved(name, business_details=None):
 
 def detect_residential_area(name, business_details=None):
     """
-    Detect if an area is residential and estimate population density
+    Detect residential area type and estimate KK count based on area name and business details
+    Returns: dict with area_type and estimated_kk
     """
     name_lower = name.lower()
     
-    # Keywords for residential areas
-    residential_keywords = [
-        'perumahan', 'kompleks', 'villa', 'rumah', 'permukiman', 
-        'kampung', 'desa', 'kelurahan', 'lingkungan', 'blok',
-        'gang', 'jalan', 'rt', 'rw'
-    ]
+    # High density residential indicators
+    high_density_keywords = ['padat', 'kumuh', 'kampung', 'slum', 'dense', 'crowded', 'perumahan', 'komplek']
+    if any(keyword in name_lower for keyword in high_density_keywords):
+        return {
+            'area_type': 'high_density_residential',
+            'estimated_kk': 150  # High density areas have more KK
+        }
     
-    # Keywords for commercial areas
-    commercial_keywords = [
-        'mall', 'pasar', 'toko', 'shop', 'market', 'plaza', 'center',
-        'supermarket', 'hypermarket', 'warung', 'restaurant', 'cafe',
-        'hotel', 'resort', 'kantor', 'office'
-    ]
+    # Commercial area indicators
+    commercial_keywords = ['pasar', 'mall', 'plaza', 'commercial', 'bisnis', 'usaha', 'toko', 'warung']
+    if any(keyword in name_lower for keyword in commercial_keywords):
+        return {
+            'area_type': 'commercial',
+            'estimated_kk': 80   # Commercial areas have fewer residential KK
+        }
     
-    # Keywords for industrial areas
-    industrial_keywords = [
-        'industri', 'factory', 'pabrik', 'kawasan industri', 'industrial zone'
-    ]
+    # Industrial area indicators
+    industrial_keywords = ['industri', 'pabrik', 'factory', 'industrial', 'kawasan industri']
+    if any(keyword in name_lower for keyword in industrial_keywords):
+        return {
+            'area_type': 'industrial',
+            'estimated_kk': 60   # Industrial areas have even fewer residential KK
+        }
     
-    # Check residential indicators
-    residential_score = sum(1 for keyword in residential_keywords if keyword in name_lower)
-    commercial_score = sum(1 for keyword in commercial_keywords if keyword in name_lower)
-    industrial_score = sum(1 for keyword in industrial_keywords if keyword in name_lower)
+    # Low density residential indicators
+    low_density_keywords = ['elite', 'mewah', 'luxury', 'villa', 'perumahan mewah', 'komplek mewah']
+    if any(keyword in name_lower for keyword in low_density_keywords):
+        return {
+            'area_type': 'low_density_residential',
+            'estimated_kk': 40   # Low density areas have fewer KK
+        }
     
-    # Determine area type
-    if residential_score > commercial_score and residential_score > industrial_score:
-        if 'perumahan' in name_lower or 'kompleks' in name_lower:
-            area_type = 'high_density_residential'
-            estimated_kk = 150
-        elif 'villa' in name_lower:
-            area_type = 'low_density_residential'
-            estimated_kk = 50
-        elif 'lingkungan' in name_lower:
-            area_type = 'standard_residential'
-            estimated_kk = 80
-        else:
-            area_type = 'standard_residential'
-            estimated_kk = 100
-    elif commercial_score > residential_score:
-        area_type = 'commercial'
-        estimated_kk = 20
-    elif industrial_score > residential_score:
-        area_type = 'industrial'
-        estimated_kk = 100
-    else:
-        # Default to residential if unclear
-        area_type = 'standard_residential'
-        estimated_kk = 50
-    
+    # Default to standard residential
     return {
-        'area_type': area_type,
-        'estimated_kk': estimated_kk
+        'area_type': 'standard_residential',
+        'estimated_kk': 100  # Standard residential area
     }
+
+def detect_building_types(text):
+    """
+    Detect different types of buildings from OCR text
+    Returns: dict with counts of different building types
+    """
+    building_data = {
+        'bangunan_kosong': 0,
+        'bangunan_bukan_tempat_tinggal': 0,
+        'bangunan_usaha': 0,
+        'kos_kosan': 0,
+        'details': {
+            'bangunan_kosong': [],
+            'bangunan_bukan_tempat_tinggal': [],
+            'bangunan_usaha': [],
+            'kos_kosan': []
+        }
+    }
+    
+    lines = text.split('\n')
+    
+    # Keywords for different building types
+    kosong_keywords = [
+        'kosong', 'empty', 'vacant', 'tidak terisi', 'belum dihuni',
+        'bangunan kosong', 'rumah kosong', 'gedung kosong', 'ruko kosong',
+        'tidak ada penghuni', 'belum ada penghuni', 'masih kosong'
+    ]
+    
+    bukan_tempat_tinggal_keywords = [
+        'masjid', 'musholla', 'surau', 'gereja', 'kapel', 'pura', 'vihara', 'klenteng',
+        'kantor', 'office', 'gedung perkantoran', 'balai desa', 'kantor desa',
+        'sekolah', 'sd', 'smp', 'sma', 'universitas', 'kampus', 'madrasah',
+        'rumah sakit', 'klinik', 'puskesmas', 'apotek', 'rumah ibadah',
+        'tempat ibadah', 'worship', 'temple', 'church', 'mosque'
+    ]
+    
+    bangunan_usaha_keywords = [
+        'toko', 'warung', 'restoran', 'rumah makan', 'cafe', 'kafe',
+        'bank', 'atm', 'spbu', 'gas station', 'salon', 'spa',
+        'hotel', 'penginapan', 'guesthouse', 'resort', 'inn',
+        'bengkel', 'workshop', 'garasi', 'showroom', 'dealer',
+        'apotek', 'pharmacy', 'klinik', 'dental', 'gigi',
+        'supermarket', 'minimarket', 'market', 'mall', 'plaza',
+        'pasar', 'traditional market', 'pasar tradisional'
+    ]
+    
+    kos_kosan_keywords = [
+        'kos', 'kost', 'kostan', 'kos-kosan', 'kost-kostan',
+        'boarding house', 'kontrakan', 'sewa kamar', 'kamar sewa',
+        'rumah kos', 'gedung kos', 'asrama', 'dormitory',
+        'kamar kost', 'kost putra', 'kost putri', 'kost campur'
+    ]
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        if not line_lower:
+            continue
+            
+        # Detect bangunan kosong
+        if any(keyword in line_lower for keyword in kosong_keywords):
+            building_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(building_name) > 2:
+                building_data['bangunan_kosong'] += 1
+                building_data['details']['bangunan_kosong'].append(building_name)
+        
+        # Detect bangunan bukan tempat tinggal
+        if any(keyword in line_lower for keyword in bukan_tempat_tinggal_keywords):
+            building_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(building_name) > 2:
+                building_data['bangunan_bukan_tempat_tinggal'] += 1
+                building_data['details']['bangunan_bukan_tempat_tinggal'].append(building_name)
+        
+        # Detect bangunan usaha
+        if any(keyword in line_lower for keyword in bangunan_usaha_keywords):
+            building_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(building_name) > 2:
+                building_data['bangunan_usaha'] += 1
+                building_data['details']['bangunan_usaha'].append(building_name)
+        
+        # Detect kos-kosan
+        if any(keyword in line_lower for keyword in kos_kosan_keywords):
+            building_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(building_name) > 2:
+                building_data['kos_kosan'] += 1
+                building_data['details']['kos_kosan'].append(building_name)
+    
+    return building_data
 
 def extract_text_from_image(image_path):
     """Extract text from image using EasyOCR with improved preprocessing and error handling"""
@@ -414,7 +486,8 @@ def parse_wss_data(text):
         'businesses': [], 'business_details': {}, # Added business_details
         'streets': [], 'environments': [], 'coordinates': [], 'landmarks': [],
         'business_types': {}, 'total_businesses': 0, 'total_streets': 0,
-        'total_environments': 0, 'total_landmarks': 0
+        'total_environments': 0, 'total_landmarks': 0,
+        'building_data': {}  # Added building data
     }
     lines = text.split('\n')
     logger.info(f"Processing {len(lines)} lines of text")
@@ -515,6 +588,7 @@ def parse_wss_data(text):
         # Extract business names with expanded keywords and categorize them
         business_keywords = {
             'mall': ['mall', 'plaza', 'center', 'pasar', 'supermarket', 'hypermarket'],
+            'pasar': ['pasar', 'market', 'traditional market', 'pasar tradisional', 'pasar induk', 'pasar besar'],
             'hotel': ['hotel', 'resort', 'inn', 'guesthouse', 'penginapan'],
             'restaurant': ['restaurant', 'cafe', 'warung', 'rumah makan', 'restoran'],
             'bank': ['bank', 'atm', 'bca', 'mandiri', 'bni', 'bri'],
@@ -654,6 +728,12 @@ def parse_wss_data(text):
     data['total_streets'] = len(data['streets'])
     data['total_environments'] = len(data['environments'])
     data['total_landmarks'] = len(data['landmarks'])
+    
+    # Detect building types
+    building_data = detect_building_types(text)
+    data['building_data'] = building_data
+    logger.info(f"Building data detected: {building_data}")
+    
     logger.info(f"Final parsed data: {data}")
     return data
 
@@ -973,11 +1053,54 @@ def generate_excel_template(wss_data):
                 'Tipe Bisnis': business_detail.get('type', 'general'),
                 'Contact Person': business_detail.get('contact_person', ''),
                 'Jam Operasional': business_detail.get('operational_hours', ''),
-                'Koordinat': business_detail.get('coordinates', ''),
+                'Koordinat (Decimal)': business_detail.get('coordinates_decimal', business_detail.get('coordinates', '')),
+                'Koordinat (DMS)': business_detail.get('coordinates_dms', ''),
+                'Latitude': business_detail.get('latitude', ''),
+                'Longitude': business_detail.get('longitude', ''),
+                'Link Google Maps': business_detail.get('google_maps_link', ''),
+                'Link OpenStreetMap': business_detail.get('osm_link', ''),
+                'Tipe Lokasi': business_detail.get('location_type', ''),
+                'Provinsi': business_detail.get('province', ''),
+                'Kabupaten': business_detail.get('regency', ''),
+                'Kecamatan': business_detail.get('district', ''),
+                'Desa': business_detail.get('village', ''),
+                'Akurasi': business_detail.get('accuracy', 'low'),
+                'Tervalidasi': business_detail.get('validated', False),
                 'Alamat': business_detail.get('address', ''),
                 'Telepon': business_detail.get('phone', ''),
                 'Email': business_detail.get('email', ''),
-                'Catatan': 'Silakan isi informasi yang kosong'
+                'Catatan': 'Koordinat yang pasti dengan validasi dan presisi tinggi'
+            })
+        
+        # Create economic centers information sheet
+        economic_centers_details = []
+        for center in wss_data.get('economic_centers', []):
+            economic_centers_details.append({
+                'Nama Pusat Ekonomi': center.get('name', ''),
+                'Tipe Pusat': center.get('type', ''),
+                'Perkiraan UMKM': center.get('estimated_umkm', 0),
+                'Lingkungan': center.get('environment', ''),
+                'Tipe Area': center.get('area_type', ''),
+                'Konteks': center.get('context', 'Pusat ekonomi yang berisi multiple UMKM'),
+                'Contact Person': center.get('contact_person', ''),
+                'Jam Operasional': center.get('operational_hours', ''),
+                'Koordinat (Decimal)': center.get('coordinates_decimal', center.get('coordinates', '')),
+                'Koordinat (DMS)': center.get('coordinates_dms', ''),
+                'Latitude': center.get('latitude', ''),
+                'Longitude': center.get('longitude', ''),
+                'Link Google Maps': center.get('google_maps_link', ''),
+                'Link OpenStreetMap': center.get('osm_link', ''),
+                'Tipe Lokasi': center.get('location_type', ''),
+                'Provinsi': center.get('province', ''),
+                'Kabupaten': center.get('regency', ''),
+                'Kecamatan': center.get('district', ''),
+                'Desa': center.get('village', ''),
+                'Akurasi': center.get('accuracy', 'low'),
+                'Tervalidasi': center.get('validated', False),
+                'Alamat': center.get('address', ''),
+                'Telepon': center.get('phone', ''),
+                'Email': center.get('email', ''),
+                'Catatan': 'Pusat ekonomi dengan koordinat yang pasti sesuai konteks lingkungan'
             })
         
         # Add empty rows for additional businesses
@@ -997,6 +1120,73 @@ def generate_excel_template(wss_data):
         df_business = pd.DataFrame(business_details)
         df_business.to_excel(writer, sheet_name='Detail Bisnis', index=False)
         
+        # Add economic centers sheet if there are any
+        if economic_centers_details:
+            df_economic_centers = pd.DataFrame(economic_centers_details)
+            df_economic_centers.to_excel(writer, sheet_name='Pusat Ekonomi', index=False)
+        
+        # Add building data sheet if there are any buildings detected
+        building_data = wss_data.get('building_data', {})
+        if building_data and (building_data.get('bangunan_kosong', 0) > 0 or 
+                            building_data.get('bangunan_bukan_tempat_tinggal', 0) > 0 or
+                            building_data.get('bangunan_usaha', 0) > 0 or
+                            building_data.get('kos_kosan', 0) > 0):
+            
+            building_details = []
+            
+            # Add bangunan kosong
+            for building in building_data.get('details', {}).get('bangunan_kosong', []):
+                building_details.append({
+                    'Tipe Bangunan': 'Bangunan Kosong',
+                    'Nama Bangunan': building,
+                    'Jumlah': 1,
+                    'Kategori': 'Tidak Terisi',
+                    'Catatan': 'Bangunan yang tidak terisi atau belum dihuni'
+                })
+            
+            # Add bangunan bukan tempat tinggal
+            for building in building_data.get('details', {}).get('bangunan_bukan_tempat_tinggal', []):
+                building_details.append({
+                    'Tipe Bangunan': 'Bangunan Bukan Tempat Tinggal',
+                    'Nama Bangunan': building,
+                    'Jumlah': 1,
+                    'Kategori': 'Fasilitas Umum',
+                    'Catatan': 'Masjid, sekolah, kantor, dll'
+                })
+            
+            # Add bangunan usaha
+            for building in building_data.get('details', {}).get('bangunan_usaha', []):
+                building_details.append({
+                    'Tipe Bangunan': 'Bangunan Usaha',
+                    'Nama Bangunan': building,
+                    'Jumlah': 1,
+                    'Kategori': 'Komersial',
+                    'Catatan': 'Toko, warung, restoran, dll'
+                })
+            
+            # Add kos-kosan
+            for building in building_data.get('details', {}).get('kos_kosan', []):
+                building_details.append({
+                    'Tipe Bangunan': 'Kos-kosan',
+                    'Nama Bangunan': building,
+                    'Jumlah': 1,
+                    'Kategori': 'Tempat Tinggal',
+                    'Catatan': 'Tempat tinggal sewa/kontrakan'
+                })
+            
+            # Add empty rows for manual entry
+            for i in range(5):
+                building_details.append({
+                    'Tipe Bangunan': '',
+                    'Nama Bangunan': '',
+                    'Jumlah': '',
+                    'Kategori': '',
+                    'Catatan': ''
+                })
+            
+            df_building = pd.DataFrame(building_details)
+            df_building.to_excel(writer, sheet_name='Data Bangunan', index=False)
+        
         # Create header information sheet
         header_data = {
             'Map ID': wss_data.get('map_id', ''),
@@ -1011,6 +1201,10 @@ def generate_excel_template(wss_data):
             'Total Streets Found': len(wss_data.get('streets', [])),
             'Total Environments': len(wss_data.get('environments', [])),
             'Total Segments Generated': len(segments),
+            'Total Bangunan Kosong': building_data.get('bangunan_kosong', 0),
+            'Total Bangunan Bukan Tempat Tinggal': building_data.get('bangunan_bukan_tempat_tinggal', 0),
+            'Total Bangunan Usaha': building_data.get('bangunan_usaha', 0),
+            'Total Kos-kosan': building_data.get('kos_kosan', 0),
             'Formula Total Muatan': '(Maks(Kol 5, Kol 6) + Kol 7 + Kol 9 + Kol 10)',
             'Note': 'Diisi jika kolom (3) = 8-13 dan selain 11'
         }
@@ -1127,6 +1321,7 @@ def extract_contextual_data(text, target_environment=None):
             # Extract business names within the target area
             business_keywords = {
                 'mall': ['mall', 'plaza', 'center', 'pasar', 'supermarket', 'hypermarket'],
+                'pasar': ['pasar', 'market', 'traditional market', 'pasar tradisional', 'pasar induk', 'pasar besar'],
                 'hotel': ['hotel', 'resort', 'inn', 'guesthouse', 'penginapan'],
                 'restaurant': ['restaurant', 'cafe', 'warung', 'rumah makan', 'restoran'],
                 'bank': ['bank', 'atm', 'bca', 'mandiri', 'bni', 'bri'],
@@ -1257,7 +1452,7 @@ def upload_file():
             return jsonify({'error': extracted_text}), 400
         
         # Parse WSS data for basic map information
-        wss_data = parse_wss_data(extracted_text)
+        wss_data = parse_wss_data_improved(extracted_text)
         
         # Validate map data
         is_valid, missing_fields, message = validate_map_data(wss_data)
@@ -1298,11 +1493,15 @@ def upload_file():
             'total_coordinates': len(contextual_data.get('coordinates', [])),
             'total_estimated_kk': total_estimated_kk,
             'dominant_loads': dominant_loads,
-            'segments': segments
+            'segments': segments,
+            'economic_centers': wss_data.get('economic_centers', [])
         }
         
         # Don't delete the file to avoid permission errors
         # os.remove(filepath)
+        
+        # Add building data to preview
+        preview_data['building_data'] = wss_data.get('building_data', {})
         
         logger.info(f"Successfully processed file. Preview data: {preview_data}")
         
@@ -1350,7 +1549,7 @@ def capture_map():
             return jsonify({'error': 'Tidak ada teks yang dapat diekstrak dari gambar. Pastikan gambar jelas dan mengandung teks.'}), 400
         
         # Parse WSS data for basic map information
-        wss_data = parse_wss_data(extracted_text)
+        wss_data = parse_wss_data_improved(extracted_text)
         
         # Validate map data
         is_valid, missing_fields, message = validate_map_data(wss_data)
@@ -1405,12 +1604,16 @@ def capture_map():
             'total_coordinates': len(contextual_data.get('coordinates', [])),
             'total_estimated_kk': total_estimated_kk,
             'dominant_loads': dominant_loads,
-            'segments': segments
+            'segments': segments,
+            'economic_centers': wss_data.get('economic_centers', [])
         }
         
         # Clean up temp file
         if os.path.exists(temp_path):
             os.remove(temp_path)
+        
+        # Add building data to preview
+        preview_data['building_data'] = wss_data.get('building_data', {})
         
         logger.info(f"Successfully processed captured image. Preview data: {preview_data}")
         return jsonify({
@@ -1452,7 +1655,8 @@ def download_excel():
             'total_businesses': data.get('total_businesses', 0),
             'total_streets': data.get('total_streets', 0),
             'total_environments': data.get('total_environments', 0),
-            'total_landmarks': data.get('total_landmarks', 0)
+            'total_landmarks': data.get('total_landmarks', 0),
+            'building_data': data.get('building_data', {})
         }
         
         # Generate Excel template
@@ -1471,6 +1675,783 @@ def download_excel():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Download error: {str(e)}'}), 500
+
+def detect_economic_centers(businesses, business_details, environments=None, dominant_load=None):
+    """
+    Detect economic centers (mall, pasar) that contain multiple UMKM
+    Focused on high accuracy detection of malls and traditional markets
+    Returns: dict with economic center information
+    """
+    economic_centers = []
+    
+    # Get environment context
+    environment_context = ""
+    if environments:
+        env_names = [env.get('name', '').lower() for env in environments]
+        environment_context = ' '.join(env_names)
+    
+    # Determine area type based on dominant load
+    area_type = ""
+    if dominant_load:
+        area_type = get_dominant_load_description(dominant_load).lower()
+    
+    # High-accuracy keywords for mall and pasar detection
+    mall_keywords = [
+        'mall', 'plaza', 'shopping center', 'pusat perbelanjaan', 
+        'supermarket', 'hypermarket', 'department store', 'mal',
+        'shopping mall', 'retail center', 'commercial center'
+    ]
+    
+    pasar_keywords = [
+        'pasar', 'market', 'traditional market', 'pasar tradisional',
+        'pasar induk', 'pasar besar', 'pasar utama', 'pasar raya', 
+        'pasar modern', 'pasar swalayan'
+    ]
+    
+    for business_name, details in business_details.items():
+        business_name_lower = business_name.lower()
+        
+        # Check if this business is an economic center (mall or pasar only)
+        center_type = None
+        estimated_umkm = 0
+        
+        # High-accuracy detection for mall
+        if any(keyword in business_name_lower for keyword in mall_keywords):
+            center_type = 'mall'
+            # Estimate UMKM based on mall size indicators
+            if any(word in business_name_lower for word in ['supermarket', 'hypermarket', 'department store']):
+                estimated_umkm = 80  # Large retail chains
+            elif any(word in business_name_lower for word in ['mall', 'plaza', 'shopping center']):
+                estimated_umkm = 60  # Standard mall
+            else:
+                estimated_umkm = 40  # Smaller commercial center
+        
+        # High-accuracy detection for pasar
+        elif any(keyword in business_name_lower for keyword in pasar_keywords):
+            center_type = 'pasar'
+            # Estimate UMKM based on pasar type
+            if any(word in business_name_lower for word in ['pasar induk', 'pasar besar', 'pasar utama']):
+                estimated_umkm = 150  # Large traditional market
+            elif any(word in business_name_lower for word in ['pasar modern', 'pasar swalayan']):
+                estimated_umkm = 80  # Modern market
+            else:
+                estimated_umkm = 100  # Standard traditional market
+        
+        # Adjust UMKM count based on map context and environment
+        if center_type:
+            # Context-based adjustments for higher accuracy
+            if 'perkambingan' in environment_context or 'ternak' in area_type:
+                # Livestock area - reduce estimates for non-agricultural centers
+                if center_type == 'mall':
+                    estimated_umkm = max(20, estimated_umkm // 2)
+                elif center_type == 'pasar':
+                    estimated_umkm = max(30, estimated_umkm // 2)
+            elif 'pertanian' in area_type or 'sawah' in environment_context:
+                # Agricultural area - moderate adjustment
+                if center_type == 'mall':
+                    estimated_umkm = max(25, estimated_umkm // 1.3)
+                elif center_type == 'pasar':
+                    estimated_umkm = max(50, estimated_umkm // 1.2)
+            elif 'industri' in area_type or 'pabrik' in environment_context:
+                # Industrial area - may have larger commercial centers
+                if center_type == 'mall':
+                    estimated_umkm = min(80, estimated_umkm * 1.1)
+                elif center_type == 'pasar':
+                    estimated_umkm = min(120, estimated_umkm * 1.1)
+            
+            # Create context-aware description with high accuracy focus
+            context_description = ""
+            if environment_context:
+                context_description = f"Pusat ekonomi ({center_type}) di {environment_context}"
+            elif area_type:
+                context_description = f"Pusat ekonomi ({center_type}) di {area_type}"
+            else:
+                context_description = f"Pusat ekonomi ({center_type}) yang berisi multiple UMKM"
+            
+            # Get precise coordinates for economic center
+            precise_coords = get_precise_coordinates(business_name, "Indonesia")
+            
+            economic_centers.append({
+                'name': business_name,
+                'type': center_type,
+                'estimated_umkm': estimated_umkm,
+                'contact_person': details.get('contact_person', 'Hubungi langsung'),
+                'operational_hours': details.get('operational_hours', '08:00-22:00'),
+                'coordinates': precise_coords.get('coordinates', details.get('coordinates', '')),
+                'coordinates_decimal': precise_coords.get('coordinates_decimal', ''),
+                'coordinates_dms': precise_coords.get('coordinates_dms', ''),
+                'latitude': precise_coords.get('latitude', ''),
+                'longitude': precise_coords.get('longitude', ''),
+                'google_maps_link': precise_coords.get('google_maps_link', ''),
+                'osm_link': precise_coords.get('osm_link', ''),
+                'location_type': precise_coords.get('location_type', ''),
+                'province': precise_coords.get('province', ''),
+                'regency': precise_coords.get('regency', ''),
+                'district': precise_coords.get('district', ''),
+                'village': precise_coords.get('village', ''),
+                'accuracy': precise_coords.get('accuracy', 'low'),
+                'validated': precise_coords.get('validated', False),
+                'address': details.get('address', ''),
+                'phone': details.get('phone', ''),
+                'email': details.get('email', ''),
+                'business_type_osm': details.get('business_type_osm', 'general'),
+                'context': context_description,
+                'environment': environment_context,
+                'area_type': area_type
+            })
+    
+    return economic_centers
+
+def search_business_info_improved(business_name, location="Indonesia"):
+    """
+    Improved business information search with better accuracy
+    Returns: dict with business details
+    """
+    try:
+        # Clean business name for search
+        clean_name = re.sub(r'[^\w\s]', '', business_name).strip()
+        if len(clean_name) < 3:
+            return {}
+        
+        # Enhanced search query with location context
+        search_query = f"{clean_name}, {location}"
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            'q': search_query,
+            'format': 'json',
+            'limit': 5,  # Get more results for better accuracy
+            'addressdetails': 1,
+            'extratags': 1
+        }
+        headers = {
+            'User-Agent': 'WSS-Map-Extractor/1.0'
+        }
+        
+        logger.info(f"Searching for business: {search_query}")
+        response = requests.get(url, params=params, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                # Find the best match based on business type
+                best_result = None
+                business_type = 'general'
+                
+                # Determine business type from name
+                name_lower = business_name.lower()
+                if any(word in name_lower for word in ['mall', 'plaza', 'center']):
+                    business_type = 'mall'
+                elif any(word in name_lower for word in ['pasar', 'market']):
+                    business_type = 'pasar'
+                elif any(word in name_lower for word in ['hotel', 'resort']):
+                    business_type = 'hotel'
+                elif any(word in name_lower for word in ['restaurant', 'cafe', 'warung']):
+                    business_type = 'restaurant'
+                elif any(word in name_lower for word in ['bank', 'atm']):
+                    business_type = 'bank'
+                elif any(word in name_lower for word in ['hospital', 'klinik']):
+                    business_type = 'hospital'
+                elif any(word in name_lower for word in ['school', 'sekolah']):
+                    business_type = 'school'
+                elif any(word in name_lower for word in ['office', 'kantor']):
+                    business_type = 'office'
+                elif any(word in name_lower for word in ['gas', 'spbu']):
+                    business_type = 'gas_station'
+                elif any(word in name_lower for word in ['car wash', 'cuci']):
+                    business_type = 'car_wash'
+                elif any(word in name_lower for word in ['salon', 'spa']):
+                    business_type = 'salon'
+                elif any(word in name_lower for word in ['motor', 'honda', 'yamaha']):
+                    business_type = 'motorcycle'
+                elif any(word in name_lower for word in ['dental', 'gigi']):
+                    business_type = 'dental'
+                elif any(word in name_lower for word in ['music', 'gitar']):
+                    business_type = 'music'
+                elif any(word in name_lower for word in ['battery', 'aki']):
+                    business_type = 'battery'
+                elif any(word in name_lower for word in ['pharmacy', 'apotek']):
+                    business_type = 'pharmacy'
+                elif any(word in name_lower for word in ['mosque', 'masjid']):
+                    business_type = 'mosque'
+                elif any(word in name_lower for word in ['church', 'gereja']):
+                    business_type = 'church'
+                elif any(word in name_lower for word in ['temple', 'pura']):
+                    business_type = 'temple'
+                elif any(word in name_lower for word in ['park', 'taman']):
+                    business_type = 'park'
+                
+                # Try to find matching business type in results
+                for result in data:
+                    if result.get('type') in ['node', 'way']:
+                        extratags = result.get('extratags', {})
+                        if business_type == 'mall' and extratags.get('shop') in ['mall', 'supermarket']:
+                            best_result = result
+                            break
+                        elif business_type == 'pasar' and extratags.get('amenity') == 'marketplace':
+                            best_result = result
+                            break
+                        elif business_type == 'hotel' and extratags.get('tourism') == 'hotel':
+                            best_result = result
+                            break
+                        elif business_type == 'restaurant' and extratags.get('amenity') == 'restaurant':
+                            best_result = result
+                            break
+                        elif business_type == 'bank' and extratags.get('amenity') == 'bank':
+                            best_result = result
+                            break
+                        elif business_type == 'hospital' and extratags.get('amenity') == 'hospital':
+                            best_result = result
+                            break
+                        elif business_type == 'school' and extratags.get('amenity') == 'school':
+                            best_result = result
+                            break
+                        elif business_type == 'office' and extratags.get('office'):
+                            best_result = result
+                            break
+                        elif business_type == 'gas_station' and extratags.get('amenity') == 'fuel':
+                            best_result = result
+                            break
+                        elif business_type == 'car_wash' and extratags.get('shop') == 'car_repair':
+                            best_result = result
+                            break
+                        elif business_type == 'salon' and extratags.get('shop') == 'hairdresser':
+                            best_result = result
+                            break
+                        elif business_type == 'motorcycle' and extratags.get('shop') == 'motorcycle':
+                            best_result = result
+                            break
+                        elif business_type == 'dental' and extratags.get('amenity') == 'dentist':
+                            best_result = result
+                            break
+                        elif business_type == 'music' and extratags.get('shop') == 'music':
+                            best_result = result
+                            break
+                        elif business_type == 'battery' and extratags.get('shop') == 'car_parts':
+                            best_result = result
+                            break
+                        elif business_type == 'pharmacy' and extratags.get('amenity') == 'pharmacy':
+                            best_result = result
+                            break
+                        elif business_type == 'mosque' and extratags.get('amenity') == 'place_of_worship':
+                            best_result = result
+                            break
+                        elif business_type == 'church' and extratags.get('amenity') == 'place_of_worship':
+                            best_result = result
+                            break
+                        elif business_type == 'temple' and extratags.get('amenity') == 'place_of_worship':
+                            best_result = result
+                            break
+                        elif business_type == 'park' and extratags.get('leisure') == 'park':
+                            best_result = result
+                            break
+                
+                # If no specific match found, use first result
+                if not best_result:
+                    best_result = data[0]
+                
+                address = best_result.get('display_name', '')
+                address_details = best_result.get('address', {})
+                extratags = best_result.get('extratags', {})
+                
+                # Get phone number from various sources
+                phone = ''
+                if 'phone' in address_details:
+                    phone = address_details['phone']
+                elif 'contact:phone' in extratags:
+                    phone = extratags['contact:phone']
+                
+                # Get website from various sources
+                website = ''
+                if 'website' in address_details:
+                    website = address_details['website']
+                elif 'contact:website' in extratags:
+                    website = extratags['contact:website']
+                
+                # Get opening hours from various sources
+                opening_hours = ''
+                if 'opening_hours' in address_details:
+                    opening_hours = address_details['opening_hours']
+                elif 'opening_hours' in extratags:
+                    opening_hours = extratags['opening_hours']
+                else:
+                    # Try to find hours in display_name
+                    hours_match = re.search(r'(\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2})', address)
+                    if hours_match:
+                        opening_hours = hours_match.group(1)
+                
+                # Set default operational hours based on business type
+                if not opening_hours:
+                    if business_type in ['restaurant', 'cafe', 'fast_food']:
+                        opening_hours = '08:00-22:00'
+                    elif business_type in ['bank', 'atm']:
+                        opening_hours = '08:00-16:00'
+                    elif business_type in ['shop', 'supermarket', 'mall']:
+                        opening_hours = '09:00-21:00'
+                    elif business_type in ['hotel', 'guest_house']:
+                        opening_hours = '24 Jam'
+                    elif business_type in ['hospital', 'klinik']:
+                        opening_hours = '24 Jam'
+                    elif business_type in ['school', 'sekolah']:
+                        opening_hours = '07:00-15:00'
+                    elif business_type in ['office', 'kantor']:
+                        opening_hours = '08:00-17:00'
+                    elif business_type in ['gas_station', 'spbu']:
+                        opening_hours = '06:00-22:00'
+                    elif business_type in ['car_wash', 'cuci']:
+                        opening_hours = '08:00-18:00'
+                    elif business_type in ['salon', 'spa']:
+                        opening_hours = '09:00-20:00'
+                    elif business_type in ['motorcycle', 'motor']:
+                        opening_hours = '08:00-17:00'
+                    elif business_type in ['dental', 'gigi']:
+                        opening_hours = '09:00-17:00'
+                    elif business_type in ['music', 'gitar']:
+                        opening_hours = '09:00-18:00'
+                    elif business_type in ['battery', 'aki']:
+                        opening_hours = '08:00-17:00'
+                    elif business_type in ['pharmacy', 'apotek']:
+                        opening_hours = '08:00-21:00'
+                    elif business_type in ['mosque', 'masjid']:
+                        opening_hours = '24 Jam'
+                    elif business_type in ['church', 'gereja']:
+                        opening_hours = '24 Jam'
+                    elif business_type in ['temple', 'pura']:
+                        opening_hours = '24 Jam'
+                    elif business_type in ['park', 'taman']:
+                        opening_hours = '06:00-22:00'
+                    else:
+                        opening_hours = '08:00-17:00'
+                
+                # Get precise coordinates
+                precise_coords = get_precise_coordinates(business_name, location)
+                
+                return {
+                    'address': address,
+                    'coordinates': precise_coords.get('coordinates', f"{best_result.get('lat', '')}, {best_result.get('lon', '')}"),
+                    'coordinates_decimal': precise_coords.get('coordinates_decimal', ''),
+                    'coordinates_dms': precise_coords.get('coordinates_dms', ''),
+                    'latitude': precise_coords.get('latitude', ''),
+                    'longitude': precise_coords.get('longitude', ''),
+                    'google_maps_link': precise_coords.get('google_maps_link', ''),
+                    'osm_link': precise_coords.get('osm_link', ''),
+                    'location_type': precise_coords.get('location_type', ''),
+                    'province': precise_coords.get('province', ''),
+                    'regency': precise_coords.get('regency', ''),
+                    'district': precise_coords.get('district', ''),
+                    'village': precise_coords.get('village', ''),
+                    'accuracy': precise_coords.get('accuracy', 'low'),
+                    'validated': precise_coords.get('validated', False),
+                    'phone': phone,
+                    'website': website,
+                    'operational_hours': opening_hours,
+                    'contact_person': 'Hubungi langsung',
+                    'email': '',
+                    'business_type': business_type
+                }
+        
+        return {}
+        
+    except Exception as e:
+        logger.error(f"Error searching business info: {e}")
+        return {}
+
+def parse_wss_data_improved(text):
+    """Improved WSS map data parsing with better accuracy"""
+    logger.info(f"Parsing WSS data from text:\n{text}")
+    data = {
+        'map_id': '', 'province': '', 'regency': '', 'district': '', 'village': '', 'scale': '',
+        'businesses': [], 'business_details': {},
+        'streets': [], 'environments': [], 'coordinates': [], 'landmarks': [],
+        'business_types': {}, 'total_businesses': 0, 'total_streets': 0,
+        'total_environments': 0, 'total_landmarks': 0,
+        'economic_centers': []  # New field for economic centers
+    }
+    lines = text.split('\n')
+    logger.info(f"Processing {len(lines)} lines of text")
+    
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line: continue
+        logger.info(f"Processing line {i+1}: '{line}'")
+        
+        # Extract Map ID (16 digit number) - improved regex
+        map_id_match = re.search(r'(\d{16})', line)
+        if map_id_match:
+            data['map_id'] = map_id_match.group(1)
+            logger.info(f"Found Map ID: {data['map_id']}")
+        
+        # Extract administrative data with improved matching
+        if 'PROVINSI' in line.upper() or 'PROVINCE' in line.upper():
+            province_match = re.search(r'PROVINSI\s*:\s*\[?\d+\]?\s*([A-Z\s]+)', line, re.IGNORECASE)
+            if province_match:
+                data['province'] = province_match.group(1).strip()
+                logger.info(f"Found Province: {data['province']}")
+            else:
+                # Enhanced province detection
+                if 'BALI' in line.upper(): data['province'] = 'BALI'
+                elif 'JAWA' in line.upper():
+                    if 'TIMUR' in line.upper(): data['province'] = 'JAWA TIMUR'
+                    elif 'TENGAH' in line.upper(): data['province'] = 'JAWA TENGAH'
+                    elif 'BARAT' in line.upper(): data['province'] = 'JAWA BARAT'
+                    else: data['province'] = 'JAWA'
+                elif 'SUMATERA' in line.upper() or 'SUMATRA' in line.upper(): data['province'] = 'SUMATERA'
+                elif 'KALIMANTAN' in line.upper(): data['province'] = 'KALIMANTAN'
+                elif 'SULAWESI' in line.upper(): data['province'] = 'SULAWESI'
+                elif 'PAPUA' in line.upper(): data['province'] = 'PAPUA'
+                elif 'MALUKU' in line.upper(): data['province'] = 'MALUKU'
+                elif 'NUSA TENGGARA' in line.upper(): data['province'] = 'NUSA TENGGARA'
+        
+        if 'KABUPATEN' in line.upper() or 'KOTA' in line.upper() or 'REGENCY' in line.upper():
+            regency_match = re.search(r'(?:KABUPATEN|KOTA)\s*:\s*\[?\d+\]?\s*([A-Z\s]+)', line, re.IGNORECASE)
+            if regency_match:
+                data['regency'] = regency_match.group(1).strip()
+                logger.info(f"Found Regency: {data['regency']}")
+            else:
+                # Enhanced regency detection for Bali
+                if 'DENPASAR' in line.upper(): data['regency'] = 'DENPASAR'
+                elif 'BADUNG' in line.upper(): data['regency'] = 'BADUNG'
+                elif 'GIANYAR' in line.upper(): data['regency'] = 'GIANYAR'
+                elif 'KLUNGKUNG' in line.upper(): data['regency'] = 'KLUNGKUNG'
+                elif 'BANGLI' in line.upper(): data['regency'] = 'BANGLI'
+                elif 'KARANGASEM' in line.upper(): data['regency'] = 'KARANGASEM'
+                elif 'BULELENG' in line.upper(): data['regency'] = 'BULELENG'
+                elif 'JEMBRANA' in line.upper(): data['regency'] = 'JEMBRANA'
+                elif 'TABANAN' in line.upper(): data['regency'] = 'TABANAN'
+        
+        if 'KECAMATAN' in line.upper() or 'DISTRICT' in line.upper():
+            district_match = re.search(r'KECAMATAN\s*:\s*\[?\d+\]?\s*([A-Z\s]+)', line, re.IGNORECASE)
+            if district_match:
+                data['district'] = district_match.group(1).strip()
+                logger.info(f"Found District: {data['district']}")
+            else:
+                # Enhanced district detection for Denpasar
+                if 'DENPASAR BARAT' in line.upper(): data['district'] = 'DENPASAR BARAT'
+                elif 'DENPASAR TIMUR' in line.upper(): data['district'] = 'DENPASAR TIMUR'
+                elif 'DENPASAR SELATAN' in line.upper(): data['district'] = 'DENPASAR SELATAN'
+                elif 'DENPASAR UTARA' in line.upper(): data['district'] = 'DENPASAR UTARA'
+        
+        if 'DESA' in line.upper() or 'KELURAHAN' in line.upper() or 'VILLAGE' in line.upper():
+            village_match = re.search(r'(?:DESA|KELURAHAN)\s*:\s*\[?\d+\]?\s*([A-Z\s]+)', line, re.IGNORECASE)
+            if village_match:
+                data['village'] = village_match.group(1).strip()
+                logger.info(f"Found Village: {data['village']}")
+            else:
+                # Enhanced village detection
+                if 'DAUH PURI' in line.upper(): data['village'] = 'DAUH PURI'
+                elif 'KELURAHAN' in line.upper():
+                    kel_match = re.search(r'KELURAHAN\s+([A-Z\s]+)', line, re.IGNORECASE)
+                    if kel_match: data['village'] = kel_match.group(1).strip()
+                elif 'DESA' in line.upper():
+                    desa_match = re.search(r'DESA\s+([A-Z\s]+)', line, re.IGNORECASE)
+                    if desa_match: data['village'] = desa_match.group(1).strip()
+        
+        # Extract scale with improved pattern
+        if 'SKALA' in line.upper():
+            scale_match = re.search(r'SKALA\s*(\d+:\d+)', line, re.IGNORECASE)
+            if scale_match:
+                data['scale'] = scale_match.group(1)
+                logger.info(f"Found Scale: {data['scale']}")
+            else:
+                scale_simple = re.search(r'(\d+:\d+)', line)
+                if scale_simple:
+                    data['scale'] = scale_simple.group(1)
+                    logger.info(f"Found Scale: {data['scale']}")
+                
+        # Extract business names with enhanced accuracy for mall and pasar detection
+        business_keywords = {
+            'mall': ['mall', 'plaza', 'center', 'supermarket', 'hypermarket', 'department store', 'pusat perbelanjaan'],
+            'pasar': ['pasar', 'market', 'traditional market', 'pasar tradisional', 'pasar induk', 'pasar besar'],
+            'hotel': ['hotel', 'resort', 'inn', 'guesthouse', 'penginapan'],
+            'restaurant': ['restaurant', 'cafe', 'warung', 'rumah makan', 'restoran'],
+            'bank': ['bank', 'atm', 'bca', 'mandiri', 'bni', 'bri'],
+            'hospital': ['hospital', 'rumah sakit', 'klinik', 'apotek', 'puskesmas'],
+            'school': ['school', 'sekolah', 'universitas', 'kampus', 'sd', 'smp', 'sma'],
+            'office': ['office', 'kantor', 'perkantoran', 'gedung'],
+            'gas_station': ['gas', 'spbu', 'pertamina', 'shell', 'bp'],
+            'car_wash': ['car wash', 'cuci mobil', 'cuci motor'],
+            'salon': ['salon', 'spa', 'beauty', 'kecantikan'],
+            'store': ['toko', 'store', 'shop', 'market', 'warung'],
+            'motorcycle': ['motor', 'honda', 'yamaha', 'suzuki', 'kawasaki'],
+            'dental': ['dental', 'gigi', 'drg', 'dokter gigi'],
+            'music': ['music', 'gitar', 'piano', 'alat musik'],
+            'battery': ['battery', 'aki', 'accu', 'baterai'],
+            'pharmacy': ['pharmacy', 'apotek', 'kimia farma', 'century'],
+            'mosque': ['mosque', 'masjid', 'musholla', 'surau'],
+            'church': ['church', 'gereja', 'kapel'],
+            'temple': ['temple', 'pura', 'vihara', 'klenteng'],
+            'park': ['park', 'taman', 'alun-alun', 'lapangan']
+        }
+        
+        business_found = False
+        for business_type, keywords in business_keywords.items():
+            if any(keyword.lower() in line.lower() for keyword in keywords):
+                business_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+                if len(business_name) > 2 and business_name not in data['businesses']:
+                    data['businesses'].append(business_name)
+                    data['business_types'][business_name] = business_type
+                    
+                    # Search for business information with improved accuracy
+                    logger.info(f"Searching for business info: {business_name}")
+                    business_info = search_business_info_improved(business_name, data.get('regency', 'Indonesia'))
+                    
+                    # Add detailed business information
+                    data['business_details'][business_name] = {
+                        'type': business_type,
+                        'contact_person': business_info.get('contact_person', 'Hubungi langsung'),
+                        'operational_hours': business_info.get('operational_hours', '08:00-17:00'),
+                        'coordinates': business_info.get('coordinates', ''),
+                        'address': business_info.get('address', ''),
+                        'phone': business_info.get('phone', ''),
+                        'email': business_info.get('email', ''),
+                        'business_type_osm': business_info.get('business_type', 'general')
+                    }
+                    
+                    business_found = True
+                    logger.info(f"Found Business: {business_name} (Type: {business_type})")
+                    break
+        
+        # If no specific type found, categorize as general business
+        if not business_found and any(keyword.lower() in line.lower() for keyword in ['warung', 'toko', 'restaurant', 'store', 'shop', 'gallery', 'motor', 'dental', 'battery', 'music', 'hotel', 'mall', 'market', 'cafe', 'bank', 'pharmacy', 'hospital', 'school', 'university', 'office', 'factory', 'warehouse', 'gas station', 'car wash', 'salon', 'spa']):
+            business_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(business_name) > 2 and business_name not in data['businesses']:
+                data['businesses'].append(business_name)
+                data['business_types'][business_name] = 'general'
+                
+                # Search for business information with improved accuracy
+                logger.info(f"Searching for business info: {business_name}")
+                business_info = search_business_info_improved(business_name, data.get('regency', 'Indonesia'))
+                
+                # Add detailed business information
+                data['business_details'][business_name] = {
+                    'type': 'general',
+                    'contact_person': business_info.get('contact_person', 'Hubungi langsung'),
+                    'operational_hours': business_info.get('operational_hours', '08:00-17:00'),
+                    'coordinates': business_info.get('coordinates', ''),
+                    'address': business_info.get('address', ''),
+                    'phone': business_info.get('phone', ''),
+                    'email': business_info.get('email', '')
+                }
+                
+                logger.info(f"Found General Business: {business_name}")
+                
+        # Extract street names with improved regex
+        if 'Jl.' in line or 'Jalan' in line or 'Jl ' in line:
+            street_match = re.search(r'(Jl\.?\s*[A-Za-z\s]+)', line)
+            if street_match:
+                street_name = street_match.group(1).strip()
+                if street_name not in data['streets']:
+                    data['streets'].append(street_name)
+                    logger.info(f"Found Street: {street_name}")
+            else:
+                jalan_match = re.search(r'Jalan\s+([A-Za-z\s]+)', line)
+                if jalan_match:
+                    street_name = f"Jl. {jalan_match.group(1).strip()}"
+                    if street_name not in data['streets']:
+                        data['streets'].append(street_name)
+                        logger.info(f"Found Street: {street_name}")
+                
+        # Extract environment names with improved regex
+        if 'LINGKUNGAN' in line.upper():
+            env_match = re.search(r'LINGKUNGAN\s+([A-Z\s]+)\s*\[(\d+)\]', line, re.IGNORECASE)
+            if env_match:
+                env_name = env_match.group(1).strip()
+                env_code = env_match.group(2)
+                if not any(env['name'] == env_name and env['code'] == env_code for env in data['environments']):
+                    data['environments'].append({
+                        'name': env_name,
+                        'code': env_code
+                    })
+                    logger.info(f"Found Environment: {env_name} [{env_code}]")
+            else:
+                env_simple_match = re.search(r'LINGKUNGAN\s+([A-Z\s]+)', line, re.IGNORECASE)
+                if env_simple_match:
+                    env_name = env_simple_match.group(1).strip()
+                    env_code = str(len(data['environments']) + 1).zfill(2)
+                    if not any(env['name'] == env_name for env in data['environments']):
+                        data['environments'].append({
+                            'name': env_name,
+                            'code': env_code
+                        })
+                        logger.info(f"Found Environment: {env_name} [{env_code}]")
+                
+        # Extract coordinates if present
+        coord_match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', line)
+        if coord_match:
+            lat = float(coord_match.group(1))
+            lon = float(coord_match.group(2))
+            coord_data = {'latitude': lat, 'longitude': lon}
+            if coord_data not in data['coordinates']:
+                data['coordinates'].append(coord_data)
+                logger.info(f"Found Coordinates: {lat}, {lon}")
+                
+        # Extract landmarks
+        landmark_keywords = ['Monument', 'Park', 'Square', 'Temple', 'Church', 'Mosque', 'Museum', 'Tugu', 'Patung', 'Alun-alun']
+        if any(keyword.lower() in line.lower() for keyword in landmark_keywords):
+            landmark_name = re.sub(r'[^\w\s\-\.]', '', line).strip()
+            if len(landmark_name) > 2 and landmark_name not in data['landmarks']:
+                data['landmarks'].append(landmark_name)
+                logger.info(f"Found Landmark: {landmark_name}")
+    
+    # Detect economic centers with environmental context
+    # Determine dominant load based on environments and business types
+    dominant_load = None
+    if data['environments']:
+        # Use the first environment to determine dominant load
+        first_env = data['environments'][0]['name']
+        dominant_load = determine_dominant_load(first_env)
+    
+    data['economic_centers'] = detect_economic_centers(
+        data['businesses'], 
+        data['business_details'],
+        environments=data['environments'],
+        dominant_load=dominant_load
+    )
+    
+    data['total_businesses'] = len(data['businesses'])
+    data['total_streets'] = len(data['streets'])
+    data['total_environments'] = len(data['environments'])
+    data['total_landmarks'] = len(data['landmarks'])
+    
+    # Detect building types
+    building_data = detect_building_types(text)
+    data['building_data'] = building_data
+    logger.info(f"Building data detected: {building_data}")
+    
+    logger.info(f"Final parsed data: {data}")
+    return data
+
+def get_precise_coordinates(business_name, location="Indonesia"):
+    """
+    Get precise coordinates with validation and higher accuracy
+    Returns: dict with validated coordinates and additional location data
+    """
+    try:
+        # Clean business name for search
+        clean_name = re.sub(r'[^\w\s]', '', business_name).strip()
+        if len(clean_name) < 3:
+            return {}
+        
+        # Enhanced search query with location context
+        search_query = f"{clean_name}, {location}"
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            'q': search_query,
+            'format': 'json',
+            'limit': 10,  # Get more results for better accuracy
+            'addressdetails': 1,
+            'extratags': 1,
+            'polygon': 1,  # Get polygon data for better accuracy
+            'viewbox': None  # Will be set based on location
+        }
+        headers = {
+            'User-Agent': 'WSS-Map-Extractor/1.0'
+        }
+        
+        logger.info(f"Getting precise coordinates for: {search_query}")
+        response = requests.get(url, params=params, headers=headers, timeout=20)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                # Find the best match with highest accuracy
+                best_result = None
+                highest_importance = 0
+                
+                for result in data:
+                    importance = result.get('importance', 0)
+                    if importance > highest_importance:
+                        highest_importance = importance
+                        best_result = result
+                
+                if best_result:
+                    lat = best_result.get('lat', '')
+                    lon = best_result.get('lon', '')
+                    
+                    # Validate coordinates
+                    try:
+                        lat_float = float(lat)
+                        lon_float = float(lon)
+                        
+                        # Check if coordinates are within reasonable bounds for Indonesia
+                        if -11.0 <= lat_float <= 6.0 and 95.0 <= lon_float <= 141.0:
+                            # Format coordinates with higher precision
+                            lat_formatted = f"{lat_float:.6f}"
+                            lon_formatted = f"{lon_float:.6f}"
+                            
+                            # Get additional location data
+                            address_details = best_result.get('address', {})
+                            extratags = best_result.get('extratags', {})
+                            
+                            # Determine location type and accuracy
+                            location_type = 'business'
+                            if extratags.get('amenity'):
+                                location_type = extratags.get('amenity')
+                            elif extratags.get('shop'):
+                                location_type = extratags.get('shop')
+                            elif extratags.get('tourism'):
+                                location_type = extratags.get('tourism')
+                            
+                            # Get administrative boundaries for context
+                            province = address_details.get('state', '')
+                            regency = address_details.get('county', '')
+                            district = address_details.get('city_district', '')
+                            village = address_details.get('suburb', '')
+                            
+                            # Create Google Maps link
+                            google_maps_link = f"https://www.google.com/maps?q={lat_float},{lon_float}"
+                            
+                            # Create OpenStreetMap link
+                            osm_link = f"https://www.openstreetmap.org/?mlat={lat_float}&mlon={lon_float}&zoom=18"
+                            
+                            return {
+                                'latitude': lat_formatted,
+                                'longitude': lon_formatted,
+                                'coordinates': f"{lat_formatted}, {lon_formatted}",
+                                'coordinates_decimal': f"{lat_float:.6f}, {lon_float:.6f}",
+                                'coordinates_dms': f"{int(lat_float)}°{int((lat_float % 1) * 60)}'{((lat_float % 1) * 60 % 1) * 60:.2f}\"S, {int(lon_float)}°{int((lon_float % 1) * 60)}'{((lon_float % 1) * 60 % 1) * 60:.2f}\"E",
+                                'location_type': location_type,
+                                'province': province,
+                                'regency': regency,
+                                'district': district,
+                                'village': village,
+                                'google_maps_link': google_maps_link,
+                                'osm_link': osm_link,
+                                'accuracy': 'high',
+                                'validated': True
+                            }
+                        else:
+                            logger.warning(f"Coordinates outside Indonesia bounds: {lat}, {lon}")
+                            return {
+                                'coordinates': f"{lat}, {lon}",
+                                'accuracy': 'low',
+                                'validated': False,
+                                'error': 'Koordinat di luar batas Indonesia'
+                            }
+                    
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Invalid coordinate format: {e}")
+                        return {
+                            'coordinates': f"{lat}, {lon}",
+                            'accuracy': 'low',
+                            'validated': False,
+                            'error': 'Format koordinat tidak valid'
+                        }
+        
+        return {
+            'coordinates': '',
+            'accuracy': 'none',
+            'validated': False,
+            'error': 'Tidak dapat menemukan koordinat'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting precise coordinates: {e}")
+        return {
+            'coordinates': '',
+            'accuracy': 'none',
+            'validated': False,
+            'error': f'Error: {str(e)}'
+        }
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

@@ -313,6 +313,16 @@
             margin-left: 10px;
         }
 
+        .data-item .building-count {
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
         .toggle-section {
             background: #f8f9ff;
             border-radius: 10px;
@@ -535,6 +545,16 @@
             <div class="data-list" id="contextualInfoList" style="display: none;">
                 <h4>🎯 INFORMASI KONTEKSTUAL</h4>
                 <div id="contextualInfoItems"></div>
+            </div>
+
+            <div class="data-list" id="economicCentersList" style="display: none;">
+                <h4>🏢 PUSAT EKONOMI YANG DITEMUKAN</h4>
+                <div id="economicCentersItems"></div>
+            </div>
+
+            <div class="data-list" id="buildingDataList" style="display: none;">
+                <h4>🏗️ DATA BANGUNAN YANG DITEMUKAN</h4>
+                <div id="buildingDataItems"></div>
             </div>
         </div>
 
@@ -1009,7 +1029,28 @@
                                             <strong>Jam Operasional:</strong> <span style="color: ${businessDetail.operational_hours ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.operational_hours ? 'normal' : 'italic'};">${businessDetail.operational_hours || 'Belum diisi (akan diisi manual)'}</span>
                                         </div>
                                         <div style="margin-bottom: 5px;">
-                                            <strong>Koordinat:</strong> <span style="color: ${businessDetail.coordinates ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.coordinates ? 'normal' : 'italic'};">${businessDetail.coordinates || 'Belum diisi (akan diisi manual)'}</span>
+                                            <strong>Koordinat (Decimal):</strong> <span style="color: ${businessDetail.coordinates_decimal ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.coordinates_decimal ? 'normal' : 'italic'};">${businessDetail.coordinates_decimal || businessDetail.coordinates || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Koordinat (DMS):</strong> <span style="color: ${businessDetail.coordinates_dms ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.coordinates_dms ? 'normal' : 'italic'};">${businessDetail.coordinates_dms || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Latitude:</strong> <span style="color: ${businessDetail.latitude ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.latitude ? 'normal' : 'italic'};">${businessDetail.latitude || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Longitude:</strong> <span style="color: ${businessDetail.longitude ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.longitude ? 'normal' : 'italic'};">${businessDetail.longitude || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        ${businessDetail.google_maps_link ? `<div style="margin-bottom: 5px;">
+                                            <strong>Link Google Maps:</strong> <a href="${businessDetail.google_maps_link}" target="_blank" style="color: #007bff; text-decoration: underline;">Lihat di Google Maps</a>
+                                        </div>` : ''}
+                                        ${businessDetail.osm_link ? `<div style="margin-bottom: 5px;">
+                                            <strong>Link OpenStreetMap:</strong> <a href="${businessDetail.osm_link}" target="_blank" style="color: #007bff; text-decoration: underline;">Lihat di OpenStreetMap</a>
+                                        </div>` : ''}
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Akurasi:</strong> <span style="color: ${businessDetail.accuracy === 'high' ? '#28a745' : businessDetail.accuracy === 'medium' ? '#ffc107' : '#dc3545'}; font-weight: bold;">${businessDetail.accuracy || 'low'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Tervalidasi:</strong> <span style="color: ${businessDetail.validated ? '#28a745' : '#dc3545'}; font-weight: bold;">${businessDetail.validated ? 'Ya' : 'Tidak'}</span>
                                         </div>
                                         <div style="margin-bottom: 5px;">
                                             <strong>Alamat:</strong> <span style="color: ${businessDetail.address ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.address ? 'normal' : 'italic'};">${businessDetail.address || 'Belum diisi (akan diisi manual)'}</span>
@@ -1159,6 +1200,176 @@
                         </div>
                     </div>
                 `;
+            }
+
+            // Show economic centers
+            if (data.economic_centers && data.economic_centers.length > 0) {
+                document.getElementById('economicCentersList').style.display = 'block';
+                const economicCentersItems = document.getElementById('economicCentersItems');
+                economicCentersItems.innerHTML = '';
+                data.economic_centers.forEach(center => {
+                    economicCentersItems.innerHTML += `
+                        <div class="data-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong>${center.name}</strong>
+                                <span class="business-type">${center.type}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: #666;">
+                                <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                    <strong>🏢 Pusat Ekonomi:</strong> ${center.context || 'Pusat ekonomi yang berisi multiple UMKM'}. Data diisi otomatis dari OpenStreetMap.
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Perkiraan UMKM:</strong> <span style="color: #28a745; font-weight: bold;">${center.estimated_umkm}</span>
+                                </div>
+                                ${center.environment ? `<div style="margin-bottom: 5px;">
+                                    <strong>Lingkungan:</strong> <span style="color: #17a2b8; font-weight: bold;">${center.environment}</span>
+                                </div>` : ''}
+                                ${center.area_type ? `<div style="margin-bottom: 5px;">
+                                    <strong>Tipe Area:</strong> <span style="color: #6f42c1; font-weight: bold;">${center.area_type}</span>
+                                </div>` : ''}
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Contact Person:</strong> <span style="color: ${center.contact_person ? '#28a745' : '#dc3545'}; font-style: ${center.contact_person ? 'normal' : 'italic'};">${center.contact_person || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Jam Operasional:</strong> <span style="color: ${center.operational_hours ? '#28a745' : '#dc3545'}; font-style: ${center.operational_hours ? 'normal' : 'italic'};">${center.operational_hours || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Koordinat (Decimal):</strong> <span style="color: ${center.coordinates_decimal ? '#28a745' : '#dc3545'}; font-style: ${center.coordinates_decimal ? 'normal' : 'italic'};">${center.coordinates_decimal || center.coordinates || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Koordinat (DMS):</strong> <span style="color: ${center.coordinates_dms ? '#28a745' : '#dc3545'}; font-style: ${center.coordinates_dms ? 'normal' : 'italic'};">${center.coordinates_dms || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Latitude:</strong> <span style="color: ${center.latitude ? '#28a745' : '#dc3545'}; font-style: ${center.latitude ? 'normal' : 'italic'};">${center.latitude || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Longitude:</strong> <span style="color: ${center.longitude ? '#28a745' : '#dc3545'}; font-style: ${center.longitude ? 'normal' : 'italic'};">${center.longitude || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                ${center.google_maps_link ? `<div style="margin-bottom: 5px;">
+                                    <strong>Link Google Maps:</strong> <a href="${center.google_maps_link}" target="_blank" style="color: #007bff; text-decoration: underline;">Lihat di Google Maps</a>
+                                </div>` : ''}
+                                ${center.osm_link ? `<div style="margin-bottom: 5px;">
+                                    <strong>Link OpenStreetMap:</strong> <a href="${center.osm_link}" target="_blank" style="color: #007bff; text-decoration: underline;">Lihat di OpenStreetMap</a>
+                                </div>` : ''}
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Akurasi:</strong> <span style="color: ${center.accuracy === 'high' ? '#28a745' : center.accuracy === 'medium' ? '#ffc107' : '#dc3545'}; font-weight: bold;">${center.accuracy || 'low'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Tervalidasi:</strong> <span style="color: ${center.validated ? '#28a745' : '#dc3545'}; font-weight: bold;">${center.validated ? 'Ya' : 'Tidak'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Alamat:</strong> <span style="color: ${center.address ? '#28a745' : '#dc3545'}; font-style: ${center.address ? 'normal' : 'italic'};">${center.address || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Telepon:</strong> <span style="color: ${center.phone ? '#28a745' : '#dc3545'}; font-style: ${center.phone ? 'normal' : 'italic'};">${center.phone || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                                <div>
+                                    <strong>Email:</strong> <span style="color: ${center.email ? '#28a745' : '#dc3545'}; font-style: ${center.email ? 'normal' : 'italic'};">${center.email || 'Belum diisi (akan diisi manual)'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Show building data
+            if (data.building_data) {
+                const buildingData = data.building_data;
+                if (buildingData.bangunan_kosong > 0 || buildingData.bangunan_bukan_tempat_tinggal > 0 || 
+                    buildingData.bangunan_usaha > 0 || buildingData.kos_kosan > 0) {
+                    
+                    document.getElementById('buildingDataList').style.display = 'block';
+                    const buildingDataItems = document.getElementById('buildingDataItems');
+                    buildingDataItems.innerHTML = '';
+                    
+                    // Bangunan Kosong
+                    if (buildingData.bangunan_kosong > 0) {
+                        buildingDataItems.innerHTML += `
+                            <div class="data-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>🏚️ Bangunan Kosong</strong>
+                                    <span class="building-count">${buildingData.bangunan_kosong}</span>
+                                </div>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                        <strong>Detail Bangunan Kosong:</strong>
+                                    </div>
+                                    ${buildingData.details.bangunan_kosong.map(building => `
+                                        <div style="margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                                            • ${building}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Bangunan Bukan Tempat Tinggal
+                    if (buildingData.bangunan_bukan_tempat_tinggal > 0) {
+                        buildingDataItems.innerHTML += `
+                            <div class="data-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>🏛️ Bangunan Bukan Tempat Tinggal</strong>
+                                    <span class="building-count">${buildingData.bangunan_bukan_tempat_tinggal}</span>
+                                </div>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                        <strong>Detail Bangunan (Masjid, Sekolah, dll):</strong>
+                                    </div>
+                                    ${buildingData.details.bangunan_bukan_tempat_tinggal.map(building => `
+                                        <div style="margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                                            • ${building}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Bangunan Usaha
+                    if (buildingData.bangunan_usaha > 0) {
+                        buildingDataItems.innerHTML += `
+                            <div class="data-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>🏪 Bangunan Usaha</strong>
+                                    <span class="building-count">${buildingData.bangunan_usaha}</span>
+                                </div>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                        <strong>Detail Bangunan Usaha:</strong>
+                                    </div>
+                                    ${buildingData.details.bangunan_usaha.map(building => `
+                                        <div style="margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                                            • ${building}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Kos-kosan
+                    if (buildingData.kos_kosan > 0) {
+                        buildingDataItems.innerHTML += `
+                            <div class="data-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>🏠 Kos-kosan</strong>
+                                    <span class="building-count">${buildingData.kos_kosan}</span>
+                                </div>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                        <strong>Detail Kos-kosan:</strong>
+                                    </div>
+                                    ${buildingData.details.kos_kosan.map(building => `
+                                        <div style="margin-bottom: 5px; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                                            • ${building}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
             }
         }
 
