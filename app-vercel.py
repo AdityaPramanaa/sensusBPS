@@ -1,11 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import pandas as pd
 import os
 from datetime import datetime
 import logging
-import re
-import requests
-from io import BytesIO
 import base64
 
 # Setup logging
@@ -19,7 +15,7 @@ os.makedirs('uploads', exist_ok=True)
 
 def parse_wss_data_simple(text):
     """
-    Simplified version without OCR dependencies
+    Simplified version without any external dependencies
     """
     data = {
         'map_id': '',
@@ -227,27 +223,22 @@ def download_excel():
             'building_data': data.get('building_data', {})
         }
         
-        # Generate Excel file
-        filename = f"wss_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        # Generate simple CSV instead of Excel (no pandas needed)
+        filename = f"wss_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         filepath = os.path.join('uploads', filename)
         
-        # Create simple Excel with pandas
-        df = pd.DataFrame({
-            'Map ID': [wss_data.get('map_id', '')],
-            'Province': [wss_data.get('province', '')],
-            'Regency': [wss_data.get('regency', '')],
-            'District': [wss_data.get('district', '')],
-            'Village': [wss_data.get('village', '')],
-            'Scale': [wss_data.get('scale', '')],
-            'Processing Date': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
-        })
+        # Create CSV content
+        csv_content = f"""Map ID,Province,Regency,District,Village,Scale,Processing Date
+{wss_data.get('map_id', '')},{wss_data.get('province', '')},{wss_data.get('regency', '')},{wss_data.get('district', '')},{wss_data.get('village', '')},{wss_data.get('scale', '')},{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
         
-        df.to_excel(filepath, index=False)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(csv_content)
         
         return send_file(filepath, as_attachment=True, download_name=filename)
         
     except Exception as e:
-        logger.error(f"Error generating Excel: {str(e)}")
+        logger.error(f"Error generating CSV: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
 if __name__ == '__main__':
