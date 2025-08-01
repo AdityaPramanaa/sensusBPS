@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSS Map Data Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .info-box h3 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .info-box p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .feature-highlight {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .feature-highlight h3 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .feature-highlight p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px 20px;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .btn-capture {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        }
+
+        .capture-area {
+            border: 3px dashed #007bff;
+            border-radius: 15px;
+            padding: 30px 20px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            text-align: center;
+            background: #f8f9ff;
+        }
+
+        .capture-area:hover {
+            border-color: #0056b3;
+            background-color: #e3f2fd;
+        }
+
+        .capture-icon {
+            font-size: 2.5em;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+
+        .capture-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .capture-hint {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .progress {
+            width: 100%;
+            height: 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .preview-section {
+            display: none;
+            margin: 30px 0;
+            text-align: left;
+        }
+
+        .preview-header {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .preview-header h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .preview-item {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .preview-item h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .preview-item p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .preview-item .count {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .data-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #eee;
+        }
+
+        .data-list h4 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .data-item {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+            border-left: 3px solid #667eea;
+        }
+
+        .data-item .business-type {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .toggle-section {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-section:hover {
+            background: #f0f4ff;
+        }
+
+        .toggle-section h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .toggle-content {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .toggle-content.show {
+            display: block;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            color: #666;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .accuracy-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .accuracy-info h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .accuracy-info ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #424242;
+        }
+
+        .coordinate-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px 0;
+        }
+
+        .coordinate-item .coord {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🗺️ WSS Extractor</div>
+        <div class="subtitle">Ekstrak data dari peta WSS dengan OCR akurat & gratis</div>
+        
+        <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 10px; padding: 15px; margin: 20px 0;">
+            <h4 style="color: #0066cc; margin-bottom: 10px;">ℹ️ Cara Kerja Aplikasi:</h4>
+            <ul style="color: #333; margin: 0; padding-left: 20px;">
+                <li><strong>Upload Gambar:</strong> Upload gambar WSS map yang berisi informasi bisnis</li>
+                <li><strong>Ekstraksi Otomatis:</strong> Aplikasi akan mengekstrak nama bisnis, jalan, dan lingkungan secara otomatis</li>
+                <li><strong>Pencarian Maps:</strong> Otomatis mencari informasi detail bisnis dari OpenStreetMap</li>
+                <li><strong>Preview Data:</strong> Review data yang berhasil diekstrak dan ditemukan dari maps</li>
+                <li><strong>Download Excel:</strong> Download template Excel dengan data lengkap dari maps</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>🚀 100% GRATIS & AKURAT</h3>
+            <p>Menggunakan EasyOCR dengan preprocessing canggih dan ekstraksi kontekstual untuk hasil terbaik</p>
+        </div>
+
+        <div class="feature-highlight">
+            <h3>🎯 PREVIEW DATA SEBELUM DOWNLOAD</h3>
+            <p>Lihat data yang diekstrak sebelum mengunduh Excel</p>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Upload Gambar Peta WSS</div>
+            <div class="upload-hint">Drag & drop file atau klik untuk memilih</div>
+            <input type="file" class="file-input" id="fileInput" accept="image/*">
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="color: #666; margin-bottom: 10px;">atau</div>
+        </div>
+
+        <div class="capture-area" id="captureArea">
+            <div class="capture-icon">📷</div>
+            <div class="capture-text">Foto Langsung Peta WSS</div>
+            <div class="capture-hint">Ambil foto langsung dari map dengan validasi otomatis</div>
+            <button class="btn btn-capture" id="captureBtn">📷 Ambil Foto</button>
+            <video id="video" style="display: none; width: 100%; max-width: 400px; margin: 10px auto;"></video>
+            <canvas id="canvas" style="display: none;"></canvas>
+        </div>
+
+        <div class="validation-info" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 10px; padding: 15px; margin: 20px 0;">
+            <h4 style="color: #856404; margin-bottom: 10px;">🔍 Validasi Data Map:</h4>
+            <p style="color: #856404; margin: 0;">Foto langsung akan memvalidasi data berikut:</p>
+            <ul style="color: #856404; margin: 10px 0; padding-left: 20px;">
+                <li><strong>Map ID:</strong> 16 digit angka (format: 5171030005000103)</li>
+                <li><strong>Provinsi:</strong> Nama provinsi (contoh: BALI)</li>
+                <li><strong>Kabupaten/Kota:</strong> Nama kabupaten/kota (contoh: DENPASAR)</li>
+                <li><strong>Kecamatan:</strong> Nama kecamatan (contoh: DENPASAR BARAT)</li>
+                <li><strong>Desa/Kelurahan:</strong> Nama desa/kelurahan (contoh: DAUH PURI)</li>
+                <li><strong>Skala:</strong> Skala peta (contoh: 1:353)</li>
+            </ul>
+            <p style="color: #856404; font-size: 0.9em; margin-top: 10px;">
+                <strong>Note:</strong> Sistem akan mengekstrak data sesuai dengan yang ada di map yang difoto, bukan berdasarkan nilai tetap.
+            </p>
+        </div>
+
+        <button class="btn" id="processBtn" style="display: none;">Proses & Preview Data</button>
+        <button class="btn btn-success" id="downloadBtn" style="display: none;">Download Excel</button>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Memproses gambar...</p>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <!-- Preview Section -->
+        <div class="preview-section" id="previewSection">
+            <div class="preview-header">
+                <h3>📊 DATA YANG DIEKSTRAK</h3>
+                <p>Review data sebelum download Excel</p>
+            </div>
+
+            <div class="preview-grid" id="previewGrid">
+                <!-- Preview items will be inserted here -->
+            </div>
+
+            <div class="data-list" id="businessesList" style="display: none;">
+                <h4>🏢 BISNIS YANG DITEMUKAN</h4>
+                <div id="businessesItems"></div>
+            </div>
+
+            <div class="data-list" id="streetsList" style="display: none;">
+                <h4>🛣️ JALAN YANG DITEMUKAN</h4>
+                <div id="streetsItems"></div>
+            </div>
+
+            <div class="data-list" id="environmentsList" style="display: none;">
+                <h4>🏘️ LINGKUNGAN YANG DITEMUKAN</h4>
+                <div id="environmentsItems"></div>
+            </div>
+
+            <div class="data-list" id="landmarksList" style="display: none;">
+                <h4>🗺️ LANDMARK YANG DITEMUKAN</h4>
+                <div id="landmarksItems"></div>
+            </div>
+
+            <div class="data-list" id="coordinatesList" style="display: none;">
+                <h4>📍 KOORDINAT YANG DITEMUKAN</h4>
+                <div id="coordinatesItems"></div>
+            </div>
+
+            <div class="data-list" id="segmentsList" style="display: none;">
+                <h4>📊 SEGMEN DENGAN MUATAN DOMINAN</h4>
+                <div id="segmentsItems"></div>
+            </div>
+
+            <div class="data-list" id="contextualInfoList" style="display: none;">
+                <h4>🎯 INFORMASI KONTEKSTUAL</h4>
+                <div id="contextualInfoItems"></div>
+            </div>
+        </div>
+
+        <div class="accuracy-info">
+            <h4>🎯 Fitur OCR Canggih:</h4>
+            <ul>
+                <li>Preprocessing gambar otomatis untuk hasil terbaik</li>
+                <li>Noise reduction dan adaptive thresholding</li>
+                <li>Confidence threshold tinggi (40%+) untuk akurasi</li>
+                <li>Deteksi bahasa Indonesia & Inggris</li>
+                <li>Filter teks pendek untuk mengurangi noise</li>
+                <li>Kategorisasi bisnis otomatis (Mall, Hotel, Restaurant, dll)</li>
+            </ul>
+        </div>
+
+        <div class="toggle-section" onclick="toggleFeatures()">
+            <h4>📋 Fitur Aplikasi</h4>
+            <div class="toggle-content" id="featuresContent">
+                <ul class="feature-list">
+                    <li>OCR canggih dengan EasyOCR (Free & Accurate)</li>
+                    <li>Preprocessing gambar otomatis</li>
+                    <li>Deteksi otomatis data administratif (Provinsi, Kabupaten, dll)</li>
+                    <li>Ekstraksi kontekstual berdasarkan lingkungan spesifik</li>
+                    <li>Identifikasi nama bisnis dan jalan</li>
+                    <li>Kategorisasi bisnis otomatis (Mall, Hotel, Restaurant, dll)</li>
+                    <li>Deteksi koordinat dan landmark</li>
+                    <li>Preview data sebelum download</li>
+                    <li>Generate template Excel sesuai format BLOK III</li>
+                    <li>Segmen otomatis berdasarkan lingkungan/jalan yang ditemukan</li>
+                    <li>Download hasil dalam format .xlsx</li>
+                    <li>Mendukung format gambar: PNG, JPG, JPEG, GIF, BMP, TIFF</li>
+                    <li>100% GRATIS - Tidak ada biaya API</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="toggle-section" onclick="toggleInstructions()">
+            <h4>📖 Tips untuk Hasil Terbaik</h4>
+            <div class="toggle-content" id="instructionsContent">
+                <ul class="feature-list">
+                    <li>Gunakan gambar dengan resolusi tinggi (minimal 300 DPI)</li>
+                    <li>Pastikan teks dalam gambar jelas dan tidak blur</li>
+                    <li>Hindari gambar yang terlalu gelap atau terang</li>
+                    <li>Format PNG atau JPG memberikan hasil terbaik</li>
+                    <li>Pastikan gambar tidak terpotong atau terdistorsi</li>
+                    <li>Untuk hasil optimal, gunakan gambar asli bukan scan</li>
+                    <li>Semakin banyak data yang terdeteksi, semakin akurat segmen yang dihasilkan</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const previewSection = document.getElementById('previewSection');
+        const previewGrid = document.getElementById('previewGrid');
+        const captureBtn = document.getElementById('captureBtn');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+
+        let selectedFile = null;
+        let extractedData = null;
+        let stream = null;
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (file.type.startsWith('image/')) {
+                selectedFile = file;
+                processBtn.style.display = 'inline-block';
+                downloadBtn.style.display = 'none';
+                previewSection.style.display = 'none';
+                showStatus('File dipilih: ' + file.name, 'success');
+            } else {
+                showStatus('Pilih file gambar yang valid', 'error');
+            }
+        }
+
+        // Process button click
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile) {
+                showStatus('Pilih file terlebih dahulu', 'error');
+                return;
+            }
+
+            processBtn.disabled = true;
+            loading.style.display = 'block';
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                // Simulate progress
+                let progressValue = 0;
+                const progressInterval = setInterval(() => {
+                    progressValue += 10;
+                    progressBar.style.width = progressValue + '%';
+                    if (progressValue >= 90) {
+                        clearInterval(progressInterval);
+                    }
+                }, 200);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        extractedData = data.preview;
+                        showPreview(data.preview);
+                        showStatus(data.message, 'success');
+                        downloadBtn.style.display = 'inline-block';
+                    } else {
+                        showStatus('Error: ' + data.error, 'error');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    showStatus('Error: ' + (errorData.error || 'Terjadi kesalahan'), 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                processBtn.disabled = false;
+                loading.style.display = 'none';
+                progress.style.display = 'none';
+            }
+        });
+
+        // Download button click
+        downloadBtn.addEventListener('click', async () => {
+            if (!extractedData) {
+                showStatus('Tidak ada data untuk di-download', 'error');
+                return;
+            }
+
+            downloadBtn.disabled = true;
+            showStatus('Mengunduh file Excel...', 'success');
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(extractedData)
+                });
+
+                if (response.ok) {
+                    // Download the file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = response.headers.get('content-disposition')?.split('filename=')[1] || 'wss_data.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                    showStatus('File Excel berhasil di-download!', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showStatus('Error: ' + (errorData.error || 'Terjadi kesalahan'), 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        });
+
+        // Camera capture functionality
+        captureBtn.addEventListener('click', async () => {
+            try {
+                if (stream) {
+                    // Stop existing stream
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                    video.style.display = 'none';
+                    captureBtn.textContent = '📷 Ambil Foto';
+                    return;
+                }
+
+                // Start camera
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                video.style.display = 'block';
+                captureBtn.textContent = '📸 Ambil Foto';
+                
+                // Show camera preview
+                video.play();
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showStatus('Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.', 'error');
+            }
+        });
+
+        // Capture photo when video is playing
+        video.addEventListener('canplay', () => {
+            if (stream) {
+                // Auto-capture after 2 seconds
+                setTimeout(() => {
+                    capturePhoto();
+                }, 2000);
+            }
+        });
+
+        function capturePhoto() {
+            if (!stream) return;
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Stop camera
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+            video.style.display = 'none';
+            captureBtn.textContent = '📷 Ambil Foto';
+            
+            // Process captured image
+            processCapturedImage(imageData);
+        }
+
+        async function processCapturedImage(imageData) {
+            captureBtn.disabled = true;
+            loading.style.display = 'block';
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+            showStatus('Memproses foto map...', 'success');
+
+            try {
+                // Simulate progress
+                let progressValue = 0;
+                const progressInterval = setInterval(() => {
+                    progressValue += 10;
+                    progressBar.style.width = progressValue + '%';
+                    if (progressValue >= 90) {
+                        clearInterval(progressInterval);
+                    }
+                }, 200);
+
+                const response = await fetch('/capture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        extractedData = data.preview;
+                        showPreview(data.preview);
+                        showStatus(data.message, 'success');
+                        downloadBtn.style.display = 'inline-block';
+                    } else {
+                        showStatus('Error: ' + data.error, 'error');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    if (errorData.missing_fields) {
+                        // Show validation error with extracted data
+                        showValidationError(errorData);
+                    } else {
+                        showStatus('Error: ' + (errorData.error || 'Terjadi kesalahan'), 'error');
+                    }
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                captureBtn.disabled = false;
+                loading.style.display = 'none';
+                progress.style.display = 'none';
+            }
+        }
+
+        function showValidationError(errorData) {
+            const extractedData = errorData.extracted_data;
+            const missingFields = errorData.missing_fields;
+            
+            let errorMessage = `<div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 10px; padding: 15px; margin: 20px 0;">
+                <h4 style="color: #721c24; margin-bottom: 10px;">❌ Validasi Gagal</h4>
+                <p style="color: #721c24; margin-bottom: 15px;">${errorData.error}</p>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 10px 0;">
+                    <h5 style="color: #856404; margin-bottom: 8px;">📊 Data yang Ditemukan:</h5>
+                    <ul style="color: #856404; margin: 0; padding-left: 20px;">
+                        <li><strong>Map ID:</strong> ${extractedData.map_id || 'Tidak ditemukan'}</li>
+                        <li><strong>Provinsi:</strong> ${extractedData.province || 'Tidak ditemukan'}</li>
+                        <li><strong>Kabupaten/Kota:</strong> ${extractedData.regency || 'Tidak ditemukan'}</li>
+                        <li><strong>Kecamatan:</strong> ${extractedData.district || 'Tidak ditemukan'}</li>
+                        <li><strong>Desa/Kelurahan:</strong> ${extractedData.village || 'Tidak ditemukan'}</li>
+                        <li><strong>Skala:</strong> ${extractedData.scale || 'Tidak ditemukan'}</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 12px; margin: 10px 0;">
+                    <h5 style="color: #721c24; margin-bottom: 8px;">❌ Field yang Tidak Ditemukan:</h5>
+                    <ul style="color: #721c24; margin: 0; padding-left: 20px;">`;
+            
+            missingFields.forEach(field => {
+                let fieldName = '';
+                switch(field) {
+                    case 'map_id': fieldName = 'Map ID (16 digit angka)'; break;
+                    case 'province': fieldName = 'Provinsi'; break;
+                    case 'regency': fieldName = 'Kabupaten/Kota'; break;
+                    case 'district': fieldName = 'Kecamatan'; break;
+                    case 'village': fieldName = 'Desa/Kelurahan'; break;
+                    default: fieldName = field;
+                }
+                errorMessage += `<li>${fieldName}</li>`;
+            });
+            
+            errorMessage += `</ul>
+                </div>
+                
+                <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; padding: 12px; margin: 10px 0;">
+                    <h5 style="color: #0c5460; margin-bottom: 8px;">💡 Solusi:</h5>
+                    <ul style="color: #0c5460; margin: 0; padding-left: 20px;">
+                        <li>Pastikan foto map jelas dan tidak blur</li>
+                        <li>Pastikan seluruh area map terlihat dalam foto</li>
+                        <li>Coba foto ulang dengan sudut yang berbeda</li>
+                        <li>Pastikan pencahayaan cukup untuk membaca teks</li>
+                        <li>Pastikan Map ID (16 digit angka) terlihat jelas</li>
+                    </ul>
+                </div>
+            </div>`;
+            
+            // Show error in status area
+            status.innerHTML = errorMessage;
+            status.style.display = 'block';
+            status.className = 'status error';
+        }
+
+        function showPreview(data) {
+            previewSection.style.display = 'block';
+            
+            // Create preview grid
+            previewGrid.innerHTML = `
+                <div class="preview-item">
+                    <h4>🗺️ Data Peta</h4>
+                    <p><strong>Map ID:</strong> ${data.map_id}</p>
+                    <p><strong>Provinsi:</strong> ${data.province}</p>
+                    <p><strong>Kabupaten:</strong> ${data.regency}</p>
+                    <p><strong>Kecamatan:</strong> ${data.district}</p>
+                    <p><strong>Desa:</strong> ${data.village}</p>
+                    <p><strong>Skala:</strong> ${data.scale}</p>
+                </div>
+                <div class="preview-item">
+                    <h4>🎯 Lingkungan Target</h4>
+                    <p><strong>Jenis:</strong> ${data.target_environment || 'Tidak terdeteksi'}</p>
+                    <p><strong>Tipe Area:</strong> ${data.area_type || 'Tidak terdeteksi'}</p>
+                </div>
+                <div class="preview-item">
+                    <h4>🏢 Bisnis</h4>
+                    <p class="count">${data.total_businesses}</p>
+                    <p>bisnis ditemukan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>🛣️ Jalan</h4>
+                    <p class="count">${data.total_streets}</p>
+                    <p>jalan ditemukan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>🏘️ Lingkungan</h4>
+                    <p class="count">${data.total_environments}</p>
+                    <p>lingkungan ditemukan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>🗺️ Landmark</h4>
+                    <p class="count">${data.total_landmarks}</p>
+                    <p>landmark ditemukan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>📍 Koordinat</h4>
+                    <p class="count">${data.total_coordinates}</p>
+                    <p>koordinat ditemukan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>👨‍👩‍👧‍👦 Perkiraan KK</h4>
+                    <p class="count">${data.total_estimated_kk || 0}</p>
+                    <p>KK diperkirakan</p>
+                </div>
+                <div class="preview-item">
+                    <h4>📊 Muatan Segmen Dominan</h4>
+                    <p class="count">${data.dominant_loads ? data.dominant_loads.length : 0}</p>
+                    <p>segmen dengan muatan dominan</p>
+                </div>
+            `;
+
+            // Show businesses
+            if (data.businesses && data.businesses.length > 0) {
+                document.getElementById('businessesList').style.display = 'block';
+                const businessesItems = document.getElementById('businessesItems');
+                businessesItems.innerHTML = '';
+                data.businesses.forEach(business => {
+                    const businessType = data.business_types[business] || 'general';
+                    const businessDetail = data.business_details && data.business_details[business] ? data.business_details[business] : {};
+                    
+                    businessesItems.innerHTML += `
+                        <div class="data-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong>${business}</strong>
+                                <span class="business-type">${businessType}</span>
+                            </div>
+                                                                <div style="font-size: 0.9em; color: #666;">
+                                        <div style="margin-bottom: 8px; padding: 8px; background: #d4edda; border-radius: 5px; border-left: 3px solid #28a745;">
+                                            <strong>✅ Informasi Detail:</strong> Data diisi otomatis dari OpenStreetMap. Jika kosong, akan diisi manual di Excel.
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Contact Person:</strong> <span style="color: ${businessDetail.contact_person ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.contact_person ? 'normal' : 'italic'};">${businessDetail.contact_person || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Jam Operasional:</strong> <span style="color: ${businessDetail.operational_hours ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.operational_hours ? 'normal' : 'italic'};">${businessDetail.operational_hours || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Koordinat:</strong> <span style="color: ${businessDetail.coordinates ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.coordinates ? 'normal' : 'italic'};">${businessDetail.coordinates || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Alamat:</strong> <span style="color: ${businessDetail.address ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.address ? 'normal' : 'italic'};">${businessDetail.address || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div style="margin-bottom: 5px;">
+                                            <strong>Telepon:</strong> <span style="color: ${businessDetail.phone ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.phone ? 'normal' : 'italic'};">${businessDetail.phone || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                        <div>
+                                            <strong>Email:</strong> <span style="color: ${businessDetail.email ? '#28a745' : '#dc3545'}; font-style: ${businessDetail.email ? 'normal' : 'italic'};">${businessDetail.email || 'Belum diisi (akan diisi manual)'}</span>
+                                        </div>
+                                    </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Show streets
+            if (data.streets && data.streets.length > 0) {
+                document.getElementById('streetsList').style.display = 'block';
+                const streetsItems = document.getElementById('streetsItems');
+                streetsItems.innerHTML = '';
+                data.streets.forEach(street => {
+                    streetsItems.innerHTML += `
+                        <div class="data-item">
+                            ${street}
+                        </div>
+                    `;
+                });
+            }
+
+            // Show environments
+            if (data.environments && data.environments.length > 0) {
+                document.getElementById('environmentsList').style.display = 'block';
+                const environmentsItems = document.getElementById('environmentsItems');
+                environmentsItems.innerHTML = '';
+                data.environments.forEach(env => {
+                    environmentsItems.innerHTML += `
+                        <div class="data-item">
+                            ${env.name} [${env.code}]
+                        </div>
+                    `;
+                });
+            }
+
+            // Show landmarks
+            if (data.landmarks && data.landmarks.length > 0) {
+                document.getElementById('landmarksList').style.display = 'block';
+                const landmarksItems = document.getElementById('landmarksItems');
+                landmarksItems.innerHTML = '';
+                data.landmarks.forEach(landmark => {
+                    landmarksItems.innerHTML += `
+                        <div class="data-item">
+                            ${landmark}
+                        </div>
+                    `;
+                });
+            }
+
+            // Show coordinates
+            if (data.coordinates && data.coordinates.length > 0) {
+                document.getElementById('coordinatesList').style.display = 'block';
+                const coordinatesItems = document.getElementById('coordinatesItems');
+                coordinatesItems.innerHTML = '';
+                data.coordinates.forEach((coord, index) => {
+                    coordinatesItems.innerHTML += `
+                        <div class="coordinate-item">
+                            <strong>Koordinat ${index + 1}:</strong><br>
+                            <span class="coord">Latitude: ${coord.latitude}</span><br>
+                            <span class="coord">Longitude: ${coord.longitude}</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Show segments with dominant loads
+            if (data.segments && data.segments.length > 0) {
+                document.getElementById('segmentsList').style.display = 'block';
+                const segmentsItems = document.getElementById('segmentsItems');
+                segmentsItems.innerHTML = '';
+                data.segments.forEach((segment, index) => {
+                    segmentsItems.innerHTML += `
+                        <div class="data-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong>Segmen ${segment.no}: ${segment.nama_wilayah}</strong>
+                                <span class="business-type">${segment.muatan_dominan}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: #666;">
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Perkiraan KK:</strong> <span style="color: #28a745; font-weight: bold;">${segment.muatan_kk}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>BTT:</strong> <span style="color: #007bff;">${segment.btt}</span> | 
+                                    <strong>BTT Kosong:</strong> <span style="color: #ffc107;">${segment.btt_kosong}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>BKU:</strong> <span style="color: #17a2b8;">${segment.bku}</span> | 
+                                    <strong>BBTT Non Usaha:</strong> <span style="color: #6c757d;">${segment.bbtt_non_usaha}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Perkiraan Usaha:</strong> <span style="color: #28a745;">${segment.muatan_usaha}</span> | 
+                                    <strong>Total Muatan:</strong> <span style="color: #dc3545; font-weight: bold;">${segment.total_muatan}</span>
+                                </div>
+                                <div style="margin-bottom: 5px;">
+                                    <strong>Kode Sub-SLS:</strong> <span style="color: #6f42c1;">${segment.kode_sub_sls}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Show contextual information
+            if (data.target_environment || data.area_type) {
+                document.getElementById('contextualInfoList').style.display = 'block';
+                const contextualInfoItems = document.getElementById('contextualInfoItems');
+                contextualInfoItems.innerHTML = `
+                    <div class="data-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong>🎯 Ekstraksi Kontekstual</strong>
+                            <span class="business-type">${data.target_environment || 'Tidak terdeteksi'}</span>
+                        </div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            <div style="margin-bottom: 8px; padding: 8px; background: #e3f2fd; border-radius: 5px; border-left: 3px solid #2196f3;">
+                                <strong>ℹ️ Fitur Baru:</strong> Sistem sekarang mengekstrak data berdasarkan lingkungan spesifik yang terdeteksi dalam peta, bukan seluruh gambar.
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Lingkungan Target:</strong> <span style="color: #2196f3; font-weight: bold;">${data.target_environment || 'Tidak terdeteksi'}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Tipe Area:</strong> <span style="color: #4caf50; font-weight: bold;">${data.area_type || 'Tidak terdeteksi'}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Perkiraan KK:</strong> <span style="color: #28a745; font-weight: bold;">${data.total_estimated_kk || 0}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Muatan Dominan:</strong> <span style="color: #ff9800; font-weight: bold;">${data.dominant_loads && data.dominant_loads.length > 0 ? data.dominant_loads[0] : 'Tidak Diketahui'}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Bisnis dalam Area:</strong> <span style="color: #9c27b0; font-weight: bold;">${data.total_businesses || 0}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong>Jalan dalam Area:</strong> <span style="color: #607d8b; font-weight: bold;">${data.total_streets || 0}</span>
+                            </div>
+                            <div>
+                                <strong>Landmark dalam Area:</strong> <span style="color: #795548; font-weight: bold;">${data.total_landmarks || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function toggleFeatures() {
+            const content = document.getElementById('featuresContent');
+            content.classList.toggle('show');
+        }
+
+        function toggleInstructions() {
+            const content = document.getElementById('instructionsContent');
+            content.classList.toggle('show');
+        }
+    </script>
+</body>
+</html> 
