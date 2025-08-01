@@ -330,7 +330,7 @@ def detect_residential_area(name, business_details=None):
     }
 
 def extract_text_from_image(image_path):
-    """Extract text from image using EasyOCR with minimal preprocessing (grayscale only)"""
+    """Extract text from image using EasyOCR with improved preprocessing and error handling"""
     try:
         logger.info(f"Starting OCR for image: {image_path}")
         
@@ -341,17 +341,42 @@ def extract_text_from_image(image_path):
         pil_image = Image.open(image_path)
         logger.info(f"Image size: {pil_image.size}")
         
-        # Preprocess image: only convert to grayscale, do not resize
+        # Enhanced preprocessing for better OCR accuracy
+        # Convert to grayscale
         gray_image = pil_image.convert('L')
+        
+        # Resize if image is too small (minimum 300px width)
+        width, height = gray_image.size
+        if width < 300:
+            scale_factor = 300 / width
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            gray_image = gray_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"Resized image to {new_width}x{new_height}")
+        
         processed_array = np.array(gray_image)
         
-        # Perform OCR with confidence threshold
+        # Perform OCR with multiple attempts and different parameters
         logger.info("Performing OCR...")
+        
+        # First attempt: with paragraph=True
         results = ocr_reader.readtext(processed_array, paragraph=True)
+        logger.info(f"First OCR attempt found {len(results)} text blocks")
         
-        logger.info(f"OCR found {len(results)} text blocks")
+        # If no results, try without paragraph
+        if not results:
+            logger.info("No results with paragraph=True, trying without...")
+            results = ocr_reader.readtext(processed_array, paragraph=False)
+            logger.info(f"Second OCR attempt found {len(results)} text blocks")
         
-        # Extract text from results with lower confidence threshold
+        # If still no results, try with different preprocessing
+        if not results:
+            logger.info("No results with grayscale, trying with original image...")
+            original_array = np.array(pil_image)
+            results = ocr_reader.readtext(original_array, paragraph=False)
+            logger.info(f"Third OCR attempt found {len(results)} text blocks")
+        
+        # Extract text from results with very low confidence threshold
         text_lines = []
         for i, result in enumerate(results):
             logger.info(f"Processing result {i+1}: {result}")
@@ -359,9 +384,10 @@ def extract_text_from_image(image_path):
                 bbox, text = result[:2]
                 confidence = result[2] if len(result) > 2 else 1.0
                 logger.info(f"Text block {i+1}: '{text}' (confidence: {confidence:.2f})")
-                if confidence > 0.05:
+                # Lower confidence threshold to 0.01 (1%)
+                if confidence > 0.01:
                     cleaned_text = text.strip()
-                    if len(cleaned_text) > 1:
+                    if len(cleaned_text) > 0:  # Accept even single characters
                         text_lines.append(cleaned_text)
             else:
                 logger.warning(f"Skipping result {i+1} with unexpected format: {result}")
@@ -369,12 +395,16 @@ def extract_text_from_image(image_path):
         final_text = '\n'.join(text_lines)
         logger.info(f"Final extracted text ({len(text_lines)} lines):\n{final_text}")
         
+        if not final_text.strip():
+            logger.warning("No text extracted from image")
+            return "Tidak ada teks yang dapat diekstrak dari gambar. Pastikan gambar jelas dan mengandung teks."
+        
         return final_text
     except Exception as e:
         logger.error(f"Error in OCR: {e}")
         import traceback
         traceback.print_exc()
-        return ""
+        return f"Error dalam proses OCR: {str(e)}"
 
 def parse_wss_data(text):
     """Parse WSS map data from OCR text with improved accuracy"""
@@ -1195,92 +1225,99 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if file and allowed_file(file.filename):
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'File type not allowed. Please upload PNG, JPG, JPEG, GIF, BMP, or TIFF files.'}), 400
+        
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
         
+        # Ensure upload directory exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        file.save(filepath)
         logger.info(f"File uploaded: {filename}")
         
-        try:
-            # Extract text from image
-            extracted_text = extract_text_from_image(filepath)
-            
-            if not extracted_text.strip():
-                logger.warning("No text extracted from image")
-                return jsonify({'error': 'Tidak ada teks yang dapat diekstrak dari gambar. Pastikan gambar jelas dan mengandung teks.'}), 400
-            
-            # Parse WSS data for basic map information
-            wss_data = parse_wss_data(extracted_text)
-            
-            # Validate map data
-            is_valid, missing_fields, message = validate_map_data(wss_data)
-            if not is_valid:
-                return jsonify({'error': message, 'missing_fields': missing_fields}), 400
-            
-            # Extract contextual data based on detected environment
-            contextual_data = extract_contextual_data(extracted_text)
-            
-            # Generate segments for preview using contextual data
-            segments = generate_segments_from_data(wss_data)
-            
-            # Calculate total estimated KK and dominant loads
-            total_estimated_kk = contextual_data.get('estimated_kk', 0)
-            dominant_loads = [contextual_data.get('dominant_load', 'Tidak Diketahui')]
-            
-            # Return preview data with contextual information
-            preview_data = {
-                'map_id': wss_data.get('map_id', 'Tidak ditemukan'),
-                'province': wss_data.get('province', 'Tidak ditemukan'),
-                'regency': wss_data.get('regency', 'Tidak ditemukan'),
-                'district': wss_data.get('district', 'Tidak ditemukan'),
-                'village': wss_data.get('village', 'Tidak ditemukan'),
-                'scale': wss_data.get('scale', 'Tidak ditemukan'),
-                'target_environment': contextual_data.get('target_environment', 'Tidak terdeteksi'),
-                'area_type': contextual_data.get('area_type', 'Tidak terdeteksi'),
-                'businesses': contextual_data.get('businesses', []),
-                'business_types': wss_data.get('business_types', {}),
-                'business_details': contextual_data.get('business_details', {}),
-                'streets': contextual_data.get('streets', []),
-                'environments': wss_data.get('environments', []),
-                'landmarks': contextual_data.get('landmarks', []),
-                'coordinates': contextual_data.get('coordinates', []),
-                'total_businesses': contextual_data.get('total_businesses', 0),
-                'total_streets': contextual_data.get('total_streets', 0),
-                'total_environments': wss_data.get('total_environments', 0),
-                'total_landmarks': contextual_data.get('total_landmarks', 0),
-                'total_coordinates': len(contextual_data.get('coordinates', [])),
-                'total_estimated_kk': total_estimated_kk,
-                'dominant_loads': dominant_loads,
-                'segments': segments
-            }
-            
-            # Don't delete the file to avoid permission errors
-            # os.remove(filepath)
-            
-            logger.info(f"Successfully processed file. Preview data: {preview_data}")
-            
-            return jsonify({
-                'success': True,
-                'preview': preview_data,
-                'message': 'Data berhasil diekstrak! Silakan review data di bawah ini.'
-            })
-            
-        except Exception as e:
-            logger.error(f"Error processing file: {e}")
-            # Don't delete file in case of error either
-            # if os.path.exists(filepath):
-            #     os.remove(filepath)
-            return jsonify({'error': f'Processing error: {str(e)}'}), 500
-    
-    return jsonify({'error': 'Invalid file type'}), 400
+        # Extract text from image
+        extracted_text = extract_text_from_image(filepath)
+        
+        if not extracted_text or extracted_text.strip() == "":
+            logger.warning("No text extracted from image")
+            return jsonify({'error': 'Tidak ada teks yang dapat diekstrak dari gambar. Pastikan gambar jelas dan mengandung teks.'}), 400
+        
+        # Check if extracted text contains error message
+        if "Error dalam proses OCR" in extracted_text or "Tidak ada teks yang dapat diekstrak" in extracted_text:
+            return jsonify({'error': extracted_text}), 400
+        
+        # Parse WSS data for basic map information
+        wss_data = parse_wss_data(extracted_text)
+        
+        # Validate map data
+        is_valid, missing_fields, message = validate_map_data(wss_data)
+        if not is_valid:
+            return jsonify({'error': message, 'missing_fields': missing_fields}), 400
+        
+        # Extract contextual data based on detected environment
+        contextual_data = extract_contextual_data(extracted_text)
+        
+        # Generate segments for preview using contextual data
+        segments = generate_segments_from_data(wss_data)
+        
+        # Calculate total estimated KK and dominant loads
+        total_estimated_kk = contextual_data.get('estimated_kk', 0)
+        dominant_loads = [contextual_data.get('dominant_load', 'Tidak Diketahui')]
+        
+        # Return preview data with contextual information
+        preview_data = {
+            'map_id': wss_data.get('map_id', 'Tidak ditemukan'),
+            'province': wss_data.get('province', 'Tidak ditemukan'),
+            'regency': wss_data.get('regency', 'Tidak ditemukan'),
+            'district': wss_data.get('district', 'Tidak ditemukan'),
+            'village': wss_data.get('village', 'Tidak ditemukan'),
+            'scale': wss_data.get('scale', 'Tidak ditemukan'),
+            'target_environment': contextual_data.get('target_environment', 'Tidak terdeteksi'),
+            'area_type': contextual_data.get('area_type', 'Tidak terdeteksi'),
+            'businesses': contextual_data.get('businesses', []),
+            'business_types': wss_data.get('business_types', {}),
+            'business_details': contextual_data.get('business_details', {}),
+            'streets': contextual_data.get('streets', []),
+            'environments': wss_data.get('environments', []),
+            'landmarks': contextual_data.get('landmarks', []),
+            'coordinates': contextual_data.get('coordinates', []),
+            'total_businesses': contextual_data.get('total_businesses', 0),
+            'total_streets': contextual_data.get('total_streets', 0),
+            'total_environments': wss_data.get('total_environments', 0),
+            'total_landmarks': contextual_data.get('total_landmarks', 0),
+            'total_coordinates': len(contextual_data.get('coordinates', [])),
+            'total_estimated_kk': total_estimated_kk,
+            'dominant_loads': dominant_loads,
+            'segments': segments
+        }
+        
+        # Don't delete the file to avoid permission errors
+        # os.remove(filepath)
+        
+        logger.info(f"Successfully processed file. Preview data: {preview_data}")
+        
+        return jsonify({
+            'success': True,
+            'preview': preview_data,
+            'message': 'Data berhasil diekstrak! Silakan review data di bawah ini.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing file: {e}")
+        # Don't delete file in case of error either
+        # if os.path.exists(filepath):
+        #     os.remove(filepath)
+        return jsonify({'error': f'Processing error: {str(e)}'}), 500
 
 @app.route('/capture', methods=['POST'])
 def capture_map():
