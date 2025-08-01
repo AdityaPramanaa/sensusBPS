@@ -17,5 +17,10 @@
   ],
   "env": {
     "PYTHONPATH": "."
+  },
+  "functions": {
+    "app-vercel.py": {
+      "maxDuration": 30
+    }
   }
 } 
